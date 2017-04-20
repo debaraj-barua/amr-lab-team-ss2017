@@ -9,13 +9,13 @@ from amr_msgs.msg import WheelSpeeds
 
 
 class DifferentialDriveEmulatorNode:
-    
+
     def __init__(self):
         rospy.init_node(NODE)
         # read differential drive params:
         self._wheel_diameter = rospy.get_param('wheel_diameter', 0.15)
         self._distance_between_wheels = rospy.get_param('distance_between_wheels', 0.5)
-        
+
         self._wheel_speed_subscriber = rospy.Subscriber('/cmd_vel_diff',
                                                         WheelSpeeds,
                                                         self._wheel_speed_callback,
@@ -40,6 +40,9 @@ class DifferentialDriveEmulatorNode:
             You may lookup the geometry_msgs.msg declaration at ros.org
             ========================================================
             """
+
+            twist.linear.x = (msg.speeds[0] + msg.speeds[1])/2
+            twist.angular.z = (msg.speeds[0] + msg.speeds[1]) / self._distance_between_wheels
 
             self._velocity_publisher.publish(twist)
             rospy.logdebug('[{:.2f} {:.2f}] --> [{:.2f} {:.2f}]'.format(msg.speeds[0],
