@@ -86,6 +86,7 @@ class BraitenbergVehicleNode:
             rangeLeft = ranges_msg.ranges[0]
             rangeRight = ranges_msg.ranges[1]
 
+            # Normalize the range values
             normLeft = (rangeLeft.range - rangeLeft.min_range)/(rangeLeft.max_range - rangeLeft.min_range)
             normRight = (rangeRight.range - rangeRight.min_range)/(rangeRight.max_range - rangeRight.min_range)
 
@@ -117,7 +118,7 @@ class BraitenbergVehicleNode:
         """
 
         self._vehicle.set_params(config.type, config.factor1, config.factor2)
-        
+
         rospy.logdebug('Vehicle reconfigured: type {}, '
                        'factors {:.2f}] and {:.2f}]'.format(
                                                            ['A','B','C'][config.type],

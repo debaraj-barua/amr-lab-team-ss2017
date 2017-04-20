@@ -36,12 +36,15 @@ class BraitenbergVehicle:
         """
 
         if(self._vehicle_type == 0):
+            # Set speed so that it goes away from obstacles
             speedLeft = (1./left_in) * self._f_1
             speedRight = (1./right_in) * self._f_2
         elif(self._vehicle_type == 1):
+            # Set speed to hit obstacle
             speedLeft = left_in * self._f_1
             speedRight = right_in * self._f_2
         else:
+            # Sensor influences both wheels and the vehicle will go straight
             speedLeft = (left_in + right_in) * self._f_1
             speedRight = (right_in + left_in) * self._f_2
 

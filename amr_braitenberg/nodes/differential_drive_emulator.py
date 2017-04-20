@@ -41,6 +41,7 @@ class DifferentialDriveEmulatorNode:
             ========================================================
             """
 
+            # Set linear and angular value for twist
             twist.linear.x = (msg.speeds[0] + msg.speeds[1])/2
             twist.angular.z = (msg.speeds[1] - msg.speeds[0]) / self._distance_between_wheels
 
