@@ -5,3 +5,5 @@ amr_perception/src/amr_perception/cfg/
 amr_stage/cfg/cpp/
 amr_stage/docs/
 amr_stage/src/amr_stage/cfg/
+
+amr_braitenberg/src/amr_braitenberg/braitenberg_vehicle.pyc

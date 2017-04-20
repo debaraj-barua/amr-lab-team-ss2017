@@ -2,24 +2,24 @@
 
 
 class BraitenbergVehicle:
-    
+
     TYPE_A = 0  # direct connections
     TYPE_B = 1  # cross connections
     TYPE_C = 2  # direct and cross connections
-        
+
     def __init__(self, *args):
         """
         init with default params (type A, factor 1.0)
         """
         self.set_params()
         pass
-    
-    
+
+
     def set_params(self, vehicle_type=TYPE_A, factor_1=1.0, factor_2=1.0):
         self._vehicle_type = vehicle_type
         self._f_1, self._f_2 = factor_1, factor_2
-    
-    
+
+
     def compute_wheel_speeds(self, left_in, right_in):
         """
         ==================== YOUR CODE HERE ====================
@@ -37,4 +37,5 @@ class BraitenbergVehicle:
 
 
 
-        return (0.0, 0.0)
+
+        return ((left_in * self._f_1), (right_in * self._f_2))

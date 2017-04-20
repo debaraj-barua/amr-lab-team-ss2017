@@ -17,33 +17,33 @@ class BraitenbergVehicleNode:
     """
     BraitenbergVehicle node ported and refactored.
     """
-    
-    
+
+
     def __init__(self):
-        
+
         rospy.init_node(NODE, log_level=rospy.DEBUG)
-        
+
         # Wait until SwitchRanger service (and hence stage node) becomes available:
         rospy.loginfo('Waiting for the /switch_ranger service to be advertised...')
         switch_ranger_client = rospy.ServiceProxy('/switch_ranger', SwitchRanger)
-        
+
         switch_ranger_client.wait_for_service()
         # Make sure that the braitenberg sonars are available and enable them.
         srr = SwitchRangerRequest()
         srr.name = 'sonar_braitenberg'
         srr.state = True
-        
+
         if switch_ranger_client.call(srr):
             rospy.loginfo('Enabled braitenberg sonars.')
         else:
             rospy.logerr('Braitenberg sonars are not available, shutting down.')
             exit()
         self._vehicle = BraitenbergVehicle()
-        
+
         """
             Subscribers and publishers
         """
-        
+
         self._sonar_subscriber = rospy.Subscriber('/sonar_braitenberg',
                                                   Ranges,
                                                   self._sonar_callback,
@@ -55,8 +55,8 @@ class BraitenbergVehicleNode:
                                                 BraitenbergVehicleConfig,
                                                 self._reconfigure_callback)
         rospy.loginfo('Started [braitenberg_vehicle] node.')
-    
-    
+
+
     def _sonar_callback(self, ranges_msg):
         """
         ========================= YOUR CODE HERE =========================
@@ -68,7 +68,7 @@ class BraitenbergVehicleNode:
         Instructions: based on the ranges reported by the two
                       sonars compute the wheel speds and fill
                       in the WheelSpeeds message.
-                      
+
                       Publish the message using
                       self._wheel_speeds_publisher
 
@@ -78,6 +78,10 @@ class BraitenbergVehicleNode:
         """
         ws = WheelSpeeds()
 
+        speedTuple = self._vehicle.compute_wheel_speeds(ranges_msg.ranges[0].range, ranges_msg.ranges[1].range)
+        ws.speeds = list(speedTuple)
+
+        self._wheel_speeds_publisher.publish(ws)
 
         # Output the debug info:
         rospy.logdebug('[{:.2f}, {:.2f}] --> [{:.2f}, {:.2f}]'.format(
@@ -85,8 +89,8 @@ class BraitenbergVehicleNode:
                                                       ranges_msg.ranges[1].range,
                                                       ws.speeds[0],
                                                       ws.speeds[1]))
-    
-    
+
+
     def _reconfigure_callback(self, config, params):
         """
         ========================= YOUR CODE HERE =========================
