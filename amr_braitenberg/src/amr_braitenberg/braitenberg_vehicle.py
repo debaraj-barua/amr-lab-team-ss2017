@@ -35,7 +35,14 @@ class BraitenbergVehicle:
         ========================================================
         """
 
+        if(self._vehicle_type == 0):
+            speedLeft = (1./left_in) * self._f_1
+            speedRight = (1./right_in) * self._f_2
+        elif(self._vehicle_type == 1):
+            speedLeft = left_in * self._f_1
+            speedRight = right_in * self._f_2
+        else:
+            speedLeft = (left_in + right_in) * self._f_1
+            speedRight = (right_in + left_in) * self._f_2
 
-
-
-        return ((left_in * self._f_1), (right_in * self._f_2))
+        return (speedLeft, speedRight)
