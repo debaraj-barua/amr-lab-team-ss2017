@@ -76,19 +76,30 @@ class BraitenbergVehicleNode:
         Hint: use self._vehicle.compute_wheel_speeds(...) function
         ==================================================================
         """
-        ws = WheelSpeeds()
+        if len(ranges_msg.ranges) != 2:
+            rospy.logwarn('Ignoring Ranges message because it does not '
+                          'contain two sensor inputs.')
+            return
+        else:
+            ws = WheelSpeeds()
 
-        speedTuple = self._vehicle.compute_wheel_speeds(ranges_msg.ranges[0].range, ranges_msg.ranges[1].range)
-        ws.speeds = list(speedTuple)
+            rangeLeft = ranges_msg.ranges[0]
+            rangeRight = ranges_msg.ranges[1]
 
-        self._wheel_speeds_publisher.publish(ws)
+            normLeft = (rangeLeft.range - rangeLeft.min_range)/(rangeLeft.max_range - rangeLeft.min_range)
+            normRight = (rangeRight.range - rangeRight.min_range)/(rangeRight.max_range - rangeRight.min_range)
 
-        # Output the debug info:
-        rospy.logdebug('[{:.2f}, {:.2f}] --> [{:.2f}, {:.2f}]'.format(
-                                                      ranges_msg.ranges[0].range,
-                                                      ranges_msg.ranges[1].range,
-                                                      ws.speeds[0],
-                                                      ws.speeds[1]))
+            speedTuple = self._vehicle.compute_wheel_speeds(1. - normLeft, 1. - normRight)
+            ws.speeds = list(speedTuple)
+
+            self._wheel_speeds_publisher.publish(ws)
+
+            # Output the debug info:
+            rospy.logdebug('[{:.2f}, {:.2f}] --> [{:.2f}, {:.2f}]'.format(
+                                                          ranges_msg.ranges[0].range,
+                                                          ranges_msg.ranges[1].range,
+                                                          ws.speeds[0],
+                                                          ws.speeds[1]))
 
 
     def _reconfigure_callback(self, config, params):
