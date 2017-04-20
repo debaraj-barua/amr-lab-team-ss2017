@@ -117,7 +117,8 @@ class BraitenbergVehicleNode:
         ==================================================================
         """
 
-        self._vehicle.set_params(config.type, config.factor1, config.factor2)
+        speed = rospy.get_param('/stage/speed', 1.);
+        self._vehicle.set_params(config.type, (config.factor1 * speed), (config.factor2 * speed))
 
         rospy.logdebug('Vehicle reconfigured: type {}, '
                        'factors {:.2f}] and {:.2f}]'.format(
