@@ -116,8 +116,9 @@ class BraitenbergVehicleNode:
         Hint: see the logdebug message below for an example how to access config parameters.
         ==================================================================
         """
-
+        # Get parameter value /stage/speed and use speed 1.0 if parameter not set 
         speed = rospy.get_param('/stage/speed', 1.);
+
         self._vehicle.set_params(config.type, (config.factor1 * speed), (config.factor2 * speed))
 
         rospy.logdebug('Vehicle reconfigured: type {}, '
