@@ -1,0 +1,7 @@
+# Ignore build files in check in
+amr_perception/cfg/cpp/
+amr_perception/docs/
+amr_perception/src/amr_perception/cfg/
+amr_stage/cfg/cpp/
+amr_stage/docs/
+amr_stage/src/amr_stage/cfg/
