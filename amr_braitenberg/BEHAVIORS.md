@@ -13,7 +13,7 @@ Factor 1 value has been used for left wheel and factor 2 for right. The values h
     The vehicle behaves the opposite in case of Type B compared to type A. When configured as type B, the wheel speed is proportional to the corresponding sensor value. Hence, When there is an obstacle within range of a sensor, the corresponding wheel speed reduces compared to the other and the vehicle moves towards the obstacle and crashes.
 
 - ### Type C
-    In case of type C, both the sensors are connected to both wheels. So, both wheels would have same speed irrespective of presense of obstacle ahead.
+    In case of type C, both the sensors are connected to both wheels. So, both wheels would have same speed irrespective of presense of obstacle ahead and the vehicle will move straight.
 
 
 ## Behavior when factor 1 and factor 2 is not equal
