@@ -83,15 +83,15 @@ class BraitenbergVehicleNode:
         else:
             ws = WheelSpeeds()
 
-            rangeLeft = ranges_msg.ranges[0]
-            rangeRight = ranges_msg.ranges[1]
+            range_left = ranges_msg.ranges[0]
+            range_right = ranges_msg.ranges[1]
 
             # Normalize the range values
-            normLeft = (rangeLeft.range - rangeLeft.min_range)/(rangeLeft.max_range - rangeLeft.min_range)
-            normRight = (rangeRight.range - rangeRight.min_range)/(rangeRight.max_range - rangeRight.min_range)
+            norm_left = (range_left.range - range_left.min_range)/(range_left.max_range - range_left.min_range)
+            norm_right = (range_right.range - range_right.min_range)/(range_right.max_range - range_right.min_range)
 
-            speedTuple = self._vehicle.compute_wheel_speeds(normLeft, normRight)
-            ws.speeds = list(speedTuple)
+            speed_tuple = self._vehicle.compute_wheel_speeds(norm_left, norm_right)
+            ws.speeds = list(speed_tuple)
 
             self._wheel_speeds_publisher.publish(ws)
 
@@ -116,7 +116,7 @@ class BraitenbergVehicleNode:
         Hint: see the logdebug message below for an example how to access config parameters.
         ==================================================================
         """
-        # Get parameter value /stage/speed and use speed 1.0 if parameter not set 
+        # Get parameter value /stage/speed and use speed 1.0 if parameter not set
         speed = rospy.get_param('/stage/speed', 1.);
 
         self._vehicle.set_params(config.type, (config.factor1 * speed), (config.factor2 * speed))
