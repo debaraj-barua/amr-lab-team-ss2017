@@ -34,11 +34,12 @@ class BraitenbergVehicle:
         (in interval [0..1])
         ========================================================
         """
+        max_float32 = (2^31) * 1.
 
         if(self._vehicle_type == 0):
             # Set speed so that it goes away from obstacles
-            speed_left = (1./left_in) * self._f_1
-            speed_right = (1./right_in) * self._f_2
+            speed_left = (1./left_in) * self._f_1 if left_in > 0 else max_float32
+            speed_right = (1./right_in) * self._f_2 if right_in > 0 else max_float32
         elif(self._vehicle_type == 1):
             # Set speed to hit obstacle
             speed_left = left_in * self._f_1
