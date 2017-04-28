@@ -5,6 +5,8 @@ PACKAGE = 'amr_navigation'
 from math import atan2, copysign
 from velocity_controller import VelocityController, Velocity
 from velocity_controller import get_shortest_angle, get_distance
+import numpy as np
+import rospy
 
 class OmniVelocityController(VelocityController):
     """
@@ -33,6 +35,36 @@ class OmniVelocityController(VelocityController):
         linear_dist = get_distance(self._target_pose, actual_pose)
         angular_dist = get_shortest_angle(self._target_pose.theta, actual_pose.theta)
 
+        min_time = abs(linear_dist) / self._a_max_vel
+
+        # Get position with respect to the bot
+        theta = actual_pose.theta * -1
+        matrix = np.array([[np.cos(theta), -np.sin(theta),0], [np.sin(theta), np.cos(theta),0], [0,0,1]])
+
+        target_pos_bot = matrix.dot(np.array([self._target_pose.x, self._target_pose.y,1]))
+        target_pos_bot_x = target_pos_bot[0]
+        target_pos_bot_y = target_pos_bot[1]
+
+        current_pos_bot = matrix.dot(np.array([actual_pose.x, actual_pose.y,1]))
+        current_pos_bot_x = current_pos_bot[0]
+        current_pos_bot_y = current_pos_bot[1]
+
+        dx_bot = target_pos_bot_x - current_pos_bot_x
+        dy_bot = target_pos_bot_y - current_pos_bot_y
+
+        linear_vel_x = copysign(dx_bot / min_time, dx)
+        linear_vel_y = copysign(dy_bot/min_time, dy)
+
+        if abs(linear_dist) < self._l_tolerance:
+            self._linear_complete = True
+            self._angular_complete = True
+            return Velocity()
+
+
+
+        return Velocity(linear_vel_x, linear_vel_y, 0)
+
+        """
         if (abs(linear_dist) < self._l_tolerance and
                     abs(angular_dist) < self._a_tolerance):
             self._linear_complete = True
@@ -53,6 +85,7 @@ class OmniVelocityController(VelocityController):
         if abs(angular_dist) > self._a_tolerance:
             angular_vel = (self._a_max_vel if abs(angular_dist) > 5 * self._a_tolerance else
                            self._a_tolerance)
+
         if abs(angular_dist) > self._a_tolerance * 5:
             # We need to rotate a lot, so stand still and rotate with max velocity.
             return Velocity(0, 0, copysign(angular_vel, angular_dist))
@@ -62,3 +95,4 @@ class OmniVelocityController(VelocityController):
             return Velocity(copysign(linear_vel, linear_dist),
                             0,
                             copysign(angular_vel, angular_dist))
+        """

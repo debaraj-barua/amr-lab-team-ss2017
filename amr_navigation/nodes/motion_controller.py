@@ -62,7 +62,7 @@ class MotionControllerNode:
             conform to what you have implemented in that class.
             
             """
-            self._velocity_controller = DiffVelocityController(max_linear_velocity,
+            self._velocity_controller = OmniVelocityController(max_linear_velocity,
                                                                linear_tolerance,
                                                                max_angular_velocity,
                                                                angular_tolerance)
