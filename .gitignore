@@ -6,4 +6,4 @@ amr_stage/cfg/cpp/
 amr_stage/docs/
 amr_stage/src/amr_stage/cfg/
 
-amr_braitenberg/src/amr_braitenberg/braitenberg_vehicle.pyc
+amr_*/**/*.pyc
