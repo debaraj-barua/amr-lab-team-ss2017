@@ -35,7 +35,7 @@ class OmniVelocityController(VelocityController):
         linear_dist = get_distance(self._target_pose, actual_pose)
         angular_dist = get_shortest_angle(self._target_pose.theta, actual_pose.theta)
 
-        min_time = abs(linear_dist) / self._a_max_vel
+        min_time = abs(linear_dist) / self._l_max_vel
 
         # Get position with respect to the bot
         theta = actual_pose.theta * -1
