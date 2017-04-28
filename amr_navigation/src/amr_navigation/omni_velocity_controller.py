@@ -52,17 +52,18 @@ class OmniVelocityController(VelocityController):
         dx_bot = target_pos_bot_x - current_pos_bot_x
         dy_bot = target_pos_bot_y - current_pos_bot_y
 
-        linear_vel_x = copysign(dx_bot / min_time, dx)
-        linear_vel_y = copysign(dy_bot/min_time, dy)
+        linear_vel_x = dx_bot / min_time
+        linear_vel_y = dy_bot/min_time
 
-        if abs(linear_dist) < self._l_tolerance:
+        angular_vel = angular_dist/min_time
+
+        if (abs(linear_dist) < self._l_tolerance and
+                    abs(angular_dist) < self._a_tolerance):
             self._linear_complete = True
             self._angular_complete = True
             return Velocity()
 
-
-
-        return Velocity(linear_vel_x, linear_vel_y, 0)
+        return Velocity(linear_vel_x,linear_vel_y,angular_vel)
 
         """
         if (abs(linear_dist) < self._l_tolerance and
