@@ -41,7 +41,8 @@ class OmniVelocityController(VelocityController):
         time_for_de_acceleration = self._l_max_vel / self._l_max_acc
         distance_for_de_acceleration = 0.5 * self._l_max_acc * time_for_de_acceleration * time_for_de_acceleration
 
-        min_time = abs(linear_dist) / self._l_max_vel if linear_dist > distance_for_de_acceleration else time_for_de_acceleration
+        linear_time = abs(linear_dist) / self._l_max_vel if linear_dist > distance_for_de_acceleration else time_for_de_acceleration
+        angular_time = abs(angular_dist) / self._a_max_vel if linear_dist > distance_for_de_acceleration else time_for_de_acceleration
 
         # Get position with respect to the bot
         theta = actual_pose.theta * -1
@@ -58,10 +59,10 @@ class OmniVelocityController(VelocityController):
         dx_bot = target_pos_bot_x - current_pos_bot_x
         dy_bot = target_pos_bot_y - current_pos_bot_y
 
-        linear_vel_x = dx_bot / min_time
-        linear_vel_y = dy_bot/min_time
+        linear_vel_x = dx_bot / linear_time
+        linear_vel_y = dy_bot/linear_time
 
-        angular_vel = angular_dist/min_time
+        angular_vel = angular_dist/angular_time
 
         if (abs(linear_dist) < self._l_tolerance and
                     abs(angular_dist) < self._a_tolerance):
