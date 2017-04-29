@@ -53,15 +53,6 @@ class MotionControllerNode:
                                                                angular_tolerance)
         elif controller_type == self.CONTROLLER_TYPE_OMNI:
             #Create omni controller
-            """
-            ========================= YOUR CODE HERE =========================
-
-            Instructions: create an instance of OmniVelocityController.     
-            Hint: you may copy-paste from the DiffVelocityController case
-            and adjust the arguments in the call to the constructor to
-            conform to what you have implemented in that class.
-            
-            """
             self._velocity_controller = OmniVelocityController(max_linear_velocity,
                                                                linear_tolerance,
                                                                max_linear_acceleration,
