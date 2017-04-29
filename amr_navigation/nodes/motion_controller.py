@@ -64,8 +64,10 @@ class MotionControllerNode:
             """
             self._velocity_controller = OmniVelocityController(max_linear_velocity,
                                                                linear_tolerance,
+                                                               max_linear_acceleration,
                                                                max_angular_velocity,
-                                                               angular_tolerance)
+                                                               angular_tolerance,
+                                                               max_angular_acceleration)
         elif controller_type == self.CONTROLLER_TYPE_UNSPECIFIED:
             rospy.logerr('Controller type not specified. '
                          'Check the [controller] launch parameter')

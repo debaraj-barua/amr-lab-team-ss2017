@@ -21,10 +21,13 @@ class OmniVelocityController(VelocityController):
     the goal pose, then it switches to the minimum velocity.
     """
 
-    def __init__(self, l_max_vel, l_tolerance, a_max_vel, a_tolerance):
+    def __init__(self, l_max_vel, l_tolerance, l_max_acc, a_max_vel, a_tolerance, a_max_acc):
         self._l_max_vel = l_max_vel
+        self._l_max_acc = l_max_acc
         self._l_tolerance = l_tolerance
+
         self._a_max_vel = a_max_vel
+        self._a_max_acc = a_max_acc
         self._a_tolerance = a_tolerance
 
     def compute_velocity(self, actual_pose):
@@ -35,7 +38,10 @@ class OmniVelocityController(VelocityController):
         linear_dist = get_distance(self._target_pose, actual_pose)
         angular_dist = get_shortest_angle(self._target_pose.theta, actual_pose.theta)
 
-        min_time = abs(linear_dist) / self._l_max_vel
+        time_for_de_acceleration = self._l_max_vel / self._l_max_acc
+        distance_for_de_acceleration = 0.5 * self._l_max_acc * time_for_de_acceleration * time_for_de_acceleration
+
+        min_time = abs(linear_dist) / self._l_max_vel if linear_dist > distance_for_de_acceleration else time_for_de_acceleration
 
         # Get position with respect to the bot
         theta = actual_pose.theta * -1
