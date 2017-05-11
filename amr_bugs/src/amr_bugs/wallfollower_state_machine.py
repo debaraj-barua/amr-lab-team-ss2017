@@ -23,6 +23,7 @@ a preemption is requested and returns 'preempted' if that is the case.
 PACKAGE = 'amr_bugs'
 
 import roslib
+
 roslib.load_manifest(PACKAGE)
 import smach
 from preemptable_state import PreemptableState
@@ -32,10 +33,10 @@ from math import pi
 from types import MethodType
 from geometry_msgs.msg import Twist
 
-
 __all__ = ['construct']
 
-#=============================== YOUR CODE HERE ===============================
+
+# =============================== YOUR CODE HERE ===============================
 # Instructions: write a function for each state of wallfollower state machine.
 #               The function should have exactly one argument (userdata
 #               dictionary), which you should use to access the input ranges
@@ -56,7 +57,18 @@ __all__ = ['construct']
 #               if ud.front_min < ud.clearance:
 #                   return 'found_obstacle'
 #               ud.velocity = (1, 0, 0)
-#==============================================================================
+# ==============================================================================
+
+def search(ud):
+    if ud.front_min < ud.clearance:
+        ud.velocity = (0, 0, 0)
+        return 'found_obstacle'
+    ud.velocity = (1, 0, 0)
+
+
+def stop(ud):
+    ud.velocity = (0, 0, 0)
+    return "stop"
 
 
 def set_ranges(self, ranges):
@@ -66,8 +78,9 @@ def set_ranges(self, ranges):
     For left hand side wallfollowing, the sensor values are mirrored (sides are swapped).
     """
 
+    self.userdata.front_min = min(ranges[3].range, ranges[4].range)
 
-    #============================= YOUR CODE HERE =============================
+    # ============================= YOUR CODE HERE =============================
     # Instructions: store the ranges from a ROS message into the userdata
     #               dictionary of the state machine.
     #               'ranges' is a list or Range messages (that should be
@@ -93,8 +106,8 @@ def set_ranges(self, ranges):
     #       mode of wallfollowing). Think about how you could make your state
     #       functions independent of wallfollowing mode by smart preprocessing
     #       of the sonar readings.
-    #==========================================================================
-    
+    # ==========================================================================
+
 
 def get_twist(self):
     """
@@ -111,7 +124,7 @@ def get_twist(self):
     twist.angular.y = 0
     twist.angular.z = self.userdata.velocity[2]
 
-    #============================= YOUR CODE HERE =============================
+    # ============================= YOUR CODE HERE =============================
     # Instructions: although this function is implemented, you may need to
     #               slightly tweak it if you decided to handle wallfolllowing
     #               mode in "the smart way".
@@ -120,7 +133,7 @@ def get_twist(self):
     #
     #           self.userdata.mode
     #
-    #==========================================================================
+    # ==========================================================================
 
     return twist
 
@@ -155,10 +168,16 @@ def construct():
     sm.userdata.max_forward_velocity = 0.3
     sm.userdata.default_rotational_speed = 0.5
     sm.userdata.direction = 1
-    
+
     with sm:
+        smach.StateMachine.add('SEARCH',
+                               PreemptableState(search,
+                                                input_keys=['front_min', 'clearance'],
+                                                output_keys=['velocity'],
+                                                outcomes=['found_obstacle']),
+                               transitions={'found_obstacle': 'preempted'})
         pass
-        #=========================== YOUR CODE HERE ===========================
+        # =========================== YOUR CODE HERE ===========================
         # Instructions: construct the state machine by adding the states that
         #               you have implemented.
         #               Below is an example how to add a state:
@@ -184,5 +203,5 @@ def construct():
         #
         # Note: The first state that you add will become the initial state of
         #       the state machine.
-        #======================================================================
+        # ======================================================================
     return sm
