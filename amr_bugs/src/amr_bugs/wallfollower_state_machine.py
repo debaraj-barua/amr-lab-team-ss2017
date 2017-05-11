@@ -22,7 +22,10 @@ a preemption is requested and returns 'preempted' if that is the case.
 
 PACKAGE = 'amr_bugs'
 
+import math
+
 import roslib
+import rospy
 
 roslib.load_manifest(PACKAGE)
 import smach
@@ -62,14 +65,67 @@ __all__ = ['construct']
 def search(ud):
     if ud.front_min < ud.clearance:
         ud.velocity = (0, 0, 0)
+
+        if(ud.mode == 0):
+            ud.turn = "right"
+        else:
+            ud.turn = "left"
+
         return 'found_obstacle'
-    ud.velocity = (1, 0, 0)
+    ud.velocity = (0.2, 0, 0)
 
 
-def stop(ud):
-    ud.velocity = (0, 0, 0)
-    return "stop"
+def align(ud):
+    if(ud.turn == "left"):
+        ud.velocity = (0, 0, .1)
 
+        #rospy.loginfo("{0} {1}".format(ud.right_1, ud.right_2))
+        if (ud.front_min > ud.clearance and
+                    math.fabs(ud.right_1 - ud.right_2) < 1e-5):
+            ud.velocity = (0, 0, 0)
+            return "aligned"
+    else:
+        ud.velocity = (0, 0, -.1)
+
+        # rospy.loginfo("{0} {1}".format(ud.right_1, ud.right_2))
+        if (ud.front_min > ud.clearance and
+                    math.fabs(ud.left_1 - ud.left_2) < 1e-5):
+            ud.velocity = (0, 0, 0)
+            return "aligned"
+
+def forward(ud):
+    if ud.front_min < ud.clearance:
+        ud.velocity = (0, 0, 0)
+
+        if(ud.left > ud.right):
+            ud.turn = "left"
+        else:
+            ud.turn = "right"
+
+        return "found_corner"
+
+    elif ud.mode == 0 and ud.left_1 - ud.left_2 > 1.0:
+        ud.turn = "left"
+        return "found_corner"
+
+    elif ud.mode ==1 and ud.right_1 - ud.right_2 > 1.0:
+        ud.turn = "right"
+        return "found_corner"
+
+    y_velocity = 0.
+
+    if ud.mode == 0:
+        if ud.left - ud.clearance > 0.1:
+            y_velocity = 0.1
+        elif ud.clearance - ud.left > -0.1:
+            y_velocity = 0.1
+    else:
+        if ud.right - ud.clearance > 0.1:
+            y_velocity = -0.1
+        elif ud.clearance - ud.right > 0.1:
+            y_velocity = 0.1
+
+    ud.velocity = (0.2, y_velocity, 0)
 
 def set_ranges(self, ranges):
     """
@@ -79,6 +135,19 @@ def set_ranges(self, ranges):
     """
 
     self.userdata.front_min = min(ranges[3].range, ranges[4].range)
+
+    self.userdata.right_top = ranges[6].range
+    self.userdata.right_bottom = ranges[9].range
+    self.userdata.right = min(ranges[7].range, ranges[8].range)
+    self.userdata.right_1 = ranges[7].range
+    self.userdata.right_2 = ranges[8].range
+
+    self.userdata.left_top = ranges[1].range
+    self.userdata.left_bottom = ranges[14].range
+    self.userdata.left = min(ranges[0].range, ranges[15].range)
+    self.userdata.left_1 = ranges[0].range
+    self.userdata.left_2 = ranges[15].range
+
 
     # ============================= YOUR CODE HERE =============================
     # Instructions: store the ranges from a ROS message into the userdata
@@ -172,10 +241,34 @@ def construct():
     with sm:
         smach.StateMachine.add('SEARCH',
                                PreemptableState(search,
-                                                input_keys=['front_min', 'clearance'],
-                                                output_keys=['velocity'],
+                                                input_keys=['front_min', 'clearance', "mode"],
+                                                output_keys=['velocity', "turn"],
                                                 outcomes=['found_obstacle']),
-                               transitions={'found_obstacle': 'preempted'})
+                               transitions={'found_obstacle': 'ALIGN'})
+
+        smach.StateMachine.add('ALIGN',
+                               PreemptableState(align,
+                                                input_keys=["front_min", "right_top",
+                                                            "right_bottom", "clearance",
+                                                            "right_1", "right_2",
+                                                            "left_1", "left_2",
+                                                            "turn"],
+                                                output_keys=['velocity'],
+                                                outcomes=['aligned']),
+                               transitions={'aligned': 'FORWARD'})
+
+        smach.StateMachine.add('FORWARD',
+                               PreemptableState(forward,
+                                                input_keys=['front_min', 'clearance',
+                                                            "right_1", "right_2",
+                                                            "left_1", "left_2",
+                                                            "right_top", "right_bottom",
+                                                            "left_top", "left_bottom",
+                                                            "mode", "left", "right"],
+                                                output_keys=['velocity', "turn"],
+                                                outcomes=['found_corner']),
+                               transitions={'found_corner': 'ALIGN'})
+
         pass
         # =========================== YOUR CODE HERE ===========================
         # Instructions: construct the state machine by adding the states that
