@@ -63,23 +63,102 @@ __all__ = ['construct']
 # ==============================================================================
 
 def search(ud):
-    if ud.front_min < ud.clearance:
+    front_min = min(ud.ranges[3], ud.ranges[4])
+    if front_min < ud.clearance:
         ud.velocity = (0, 0, 0)
-
-        if(ud.mode == 0):
-            ud.turn = "right"
-        else:
-            ud.turn = "left"
-
         return 'found_obstacle'
+
     ud.velocity = (0.2, 0, 0)
 
 
+def align_with_wall(ud):
+    clearance_tolerance = 0.1
+    front_min = min(ud.ranges[3], ud.ranges[4])
+
+    if front_min < ud.clearance:
+        angular_velocity = -0.1 if ud.mode == 0 else 0.1
+        ud.velocity = (0, 0, angular_velocity)
+
+        rate = rospy.Rate(100)
+        rate.sleep()
+        while not rospy.is_shutdown():
+            side_sonar_1 = ud.ranges[0] if ud.mode == 0 else ud.ranges[7]
+            side_sonar_2 = ud.ranges[15] if ud.mode == 0 else ud.ranges[8]
+
+            rospy.loginfo("{0} {1}".format(side_sonar_1, side_sonar_2))
+            if (math.fabs(side_sonar_1 - side_sonar_2) < 1e-3):
+                ud.velocity = (0, 0, 0)
+                break
+
+            rate.sleep()
+
+        while not rospy.is_shutdown():
+            if (ud.mode == 0):
+                distance_with_wall = min(ud.ranges[0], ud.ranges[15])
+
+                if (math.fabs(distance_with_wall - ud.clearance) < clearance_tolerance):
+                    break
+
+                y_velocity = -0.1 if distance_with_wall > ud.clearance else 0.1
+                ud.velocity = (0, y_velocity, 0)
+
+            else:
+                distance_with_wall = min(ud.ranges[7], ud.ranges[8])
+
+                if (math.fabs(distance_with_wall - ud.clearance) < clearance_tolerance):
+                    break
+
+                y_velocity = 0.1 if distance_with_wall > ud.clearance else -0.1
+                ud.velocity = (0, y_velocity, 0)
+
+            rate.sleep()
+
+    return "aligned_with_wall"
+
+
+def follow_wall(ud):
+    clearance_tolerance = 0.1
+
+    front_min = min(ud.ranges[3], ud.ranges[4])
+    if front_min < ud.clearance:
+        ud.velocity = (0, 0, 0)
+        return 'found_corner'
+
+    if ud.mode == 1 and ud.ranges[8] < ud.clearance + clearance_tolerance \
+            and ud.ranges[7] > ud.ranges[8] * 2:
+        ud.velocity = (0, 0, 0)
+        return "found_convex"
+
+    ud.velocity = (0.2, 0, 0)
+
+
+def align_with_corner(ud):
+    front_min = min(ud.ranges[3], ud.ranges[4])
+    right_min = min(ud.ranges[7], ud.ranges[8])
+    left_min = min(ud.ranges[0], ud.ranges[15])
+
+    if front_min < ud.clearance:
+        angular_velocity = 0.1 if left_min > right_min else -0.1
+        ud.velocity = (0, 0, angular_velocity)
+
+        rate = rospy.Rate(100)
+        rate.sleep()
+
+        while not rospy.is_shutdown():
+            rospy.loginfo("{0} {1}".format(ud.ranges[11], ud.ranges[12]))
+            if (math.fabs(ud.ranges[11] - ud.ranges[12]) < 1e-3):  # Back sensors will be at right
+                ud.velocity = (0, 0, 0)
+                break
+            rate.sleep()
+
+    return "corner_aligned"
+
+
 def align(ud):
-    if(ud.turn == "left"):
+    if (ud.turn == "left"):
         ud.velocity = (0, 0, .1)
 
-        #rospy.loginfo("{0} {1}".format(ud.right_1, ud.right_2))
+        # rospy.loginfo("{0} {1}".format(ud.right_1, ud.right_2))
         if (ud.front_min > ud.clearance and
                     math.fabs(ud.right_1 - ud.right_2) < 1e-5):
             ud.velocity = (0, 0, 0)
@@ -93,11 +172,12 @@ def align(ud):
             ud.velocity = (0, 0, 0)
             return "aligned"
 
+
 def forward(ud):
     if ud.front_min < ud.clearance:
         ud.velocity = (0, 0, 0)
 
-        if(ud.left > ud.right):
+        if (ud.left > ud.right):
             ud.turn = "left"
         else:
             ud.turn = "right"
@@ -108,7 +188,7 @@ def forward(ud):
         ud.turn = "left"
         return "found_corner"
 
-    elif ud.mode ==1 and ud.right_1 - ud.right_2 > 1.0:
+    elif ud.mode == 1 and ud.right_1 - ud.right_2 > 1.0:
         ud.turn = "right"
         return "found_corner"
 
@@ -127,6 +207,7 @@ def forward(ud):
 
     ud.velocity = (0.2, y_velocity, 0)
 
+
 def set_ranges(self, ranges):
     """
     This function will be attached to the constructed wallfollower machine.
@@ -134,19 +215,7 @@ def set_ranges(self, ranges):
     For left hand side wallfollowing, the sensor values are mirrored (sides are swapped).
     """
 
-    self.userdata.front_min = min(ranges[3].range, ranges[4].range)
-
-    self.userdata.right_top = ranges[6].range
-    self.userdata.right_bottom = ranges[9].range
-    self.userdata.right = min(ranges[7].range, ranges[8].range)
-    self.userdata.right_1 = ranges[7].range
-    self.userdata.right_2 = ranges[8].range
-
-    self.userdata.left_top = ranges[1].range
-    self.userdata.left_bottom = ranges[14].range
-    self.userdata.left = min(ranges[0].range, ranges[15].range)
-    self.userdata.left_1 = ranges[0].range
-    self.userdata.left_2 = ranges[15].range
+    self.userdata.ranges = map(lambda s: s.range, ranges)
 
 
     # ============================= YOUR CODE HERE =============================
@@ -241,10 +310,32 @@ def construct():
     with sm:
         smach.StateMachine.add('SEARCH',
                                PreemptableState(search,
-                                                input_keys=['front_min', 'clearance', "mode"],
-                                                output_keys=['velocity', "turn"],
-                                                outcomes=['found_obstacle']),
-                               transitions={'found_obstacle': 'ALIGN'})
+                                                input_keys=["ranges", "clearance", "mode"],
+                                                output_keys=["velocity"],
+                                                outcomes=["found_obstacle"]),
+                               transitions={'found_obstacle': 'ALIGN_WITH_WALL'})
+
+        smach.StateMachine.add('ALIGN_WITH_WALL',
+                               PreemptableState(align_with_wall,
+                                                input_keys=["ranges", "clearance", "mode"],
+                                                output_keys=["velocity"],
+                                                outcomes=["aligned_with_wall"]),
+                               transitions={'aligned_with_wall': 'FOLLOW_WALL'})
+
+        smach.StateMachine.add('FOLLOW_WALL',
+                               PreemptableState(follow_wall,
+                                                input_keys=["ranges", "clearance", "mode"],
+                                                output_keys=["velocity"],
+                                                outcomes=["found_corner", "found_convex"]),
+                               transitions={"found_corner": "ALIGN_WITH_CORNER",
+                                            "found_convex": "preempted"})
+
+        smach.StateMachine.add('ALIGN_WITH_CORNER',
+                               PreemptableState(align_with_corner,
+                                                input_keys=["ranges", "clearance", "mode"],
+                                                output_keys=["velocity"],
+                                                outcomes=["corner_aligned"]),
+                               transitions={'corner_aligned': 'FOLLOW_WALL'})
 
         smach.StateMachine.add('ALIGN',
                                PreemptableState(align,
