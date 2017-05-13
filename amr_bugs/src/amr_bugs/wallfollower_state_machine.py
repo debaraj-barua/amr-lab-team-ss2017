@@ -206,7 +206,7 @@ def follow_convex(ud):
         # Skip if there is a narrow turning
         if ud.ranges[7] < 1.:
             while not rospy.is_shutdown():
-                if ud.ranges[8] < ud.ranges[9]:
+                if ud.ranges[9] > ud.clearance + clearance_tolerance:
                     ud.velocity = (0, 0, 0)
                     break
                 rate.sleep()
