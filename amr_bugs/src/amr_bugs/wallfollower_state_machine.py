@@ -90,7 +90,6 @@ def align_distance_with_wall(ud):
 
         else:
             distance_with_wall = min(ud.ranges[7], ud.ranges[8])
-            rospy.loginfo("{0}".format(distance_with_wall))
             if math.fabs(distance_with_wall - ud.clearance) < clearance_tolerance:
                 ud.velocity = (0, 0, 0)
                 break
@@ -119,7 +118,6 @@ def align_angle_with_wall(ud):
             side_sonar_1 = ud.ranges[0] if ud.mode == 0 else ud.ranges[7]
             side_sonar_2 = ud.ranges[15] if ud.mode == 0 else ud.ranges[8]
 
-            # rospy.loginfo("{0} {1}".format(side_sonar_1, side_sonar_2))
             if (math.fabs(side_sonar_1 - side_sonar_2) < 1e-3):
                 ud.velocity = (0, 0, 0)
                 break
@@ -173,7 +171,7 @@ def follow_wall(ud):
             ud.velocity = (0, 0, 0)
             return "found_angle_broken"
         """
-        if (min(ud.ranges[2], left_min) < max(ud.ranges[2], left_min) * 2) and \
+        if (min(ud.ranges[1], left_min) < max(ud.ranges[1], left_min) * 2) and \
                 (left_min < ud.clearance - clearance_tolerance or left_min > ud.clearance + clearance_tolerance):
             ud.velocity = (0, 0, 0)
             return "found_distance_broken"
@@ -202,7 +200,51 @@ def follow_convex(ud):
 
     rate = rospy.Rate(100)
 
-    if ud.mode == 1:
+    if ud.mode == 0:
+        # Skip if there is a narrow turning
+        if ud.ranges[0] < 1.:
+            while not rospy.is_shutdown():
+                if ud.ranges[14] > ud.clearance + clearance_tolerance:
+                    ud.velocity = (0, 0, 0)
+                    break
+                rate.sleep()
+            return "convex_aligned"
+
+        # Stop when range 15 has crossed wall at left
+        while not rospy.is_shutdown():
+            if ud.ranges[15] > ud.clearance + clearance_tolerance * 2:
+                rospy.sleep(0.5)
+                ud.velocity = (0, 0, 0)
+                break
+            rate.sleep()
+
+        # Move close to the wall
+        while not rospy.is_shutdown():
+            ud.velocity = (0, 0.1, 0)
+
+            if ud.ranges[14] < clearance_tolerance * 2:
+                ud.velocity = (0, 0, 0)
+                break
+            rate.sleep()
+
+        # Turn left
+        ud.velocity = (0, 0, 0.1)
+        while not rospy.is_shutdown():
+            if ud.ranges[2] < ud.clearance:
+                ud.velocity = (0, 0, 0)
+                break
+            rate.sleep()
+
+        # Go ahead to keep the left wall on its left
+        ud.velocity = (0.2, 0, 0)
+        rospy.sleep(1)
+        while not rospy.is_shutdown():
+            if ud.ranges[0] + clearance_tolerance > ud.ranges[15]:
+                ud.velocity = (0, 0, 0)
+                break
+            rate.sleep()
+
+    else:
         # Skip if there is a narrow turning
         if ud.ranges[7] < 1.:
             while not rospy.is_shutdown():
@@ -264,8 +306,7 @@ def align_with_corner(ud):
         rate.sleep()
 
         while not rospy.is_shutdown():
-            # rospy.loginfo("{0} {1}".format(ud.ranges[11], ud.ranges[12]))
-            if (math.fabs(ud.ranges[11] - ud.ranges[12]) < 1e-3):  # Back sensors will be at right
+            if math.fabs(ud.ranges[11] - ud.ranges[12]) < 1e-3:  # Back sensors will be at right or left
                 ud.velocity = (0, 0, 0)
                 break
             rate.sleep()
