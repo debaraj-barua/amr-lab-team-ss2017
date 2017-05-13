@@ -80,7 +80,7 @@ def align_with_wall(ud):
         ud.velocity = (0, 0, angular_velocity)
 
         rate = rospy.Rate(100)
-        rate.sleep()
+        rospy.sleep(0.5)
         while not rospy.is_shutdown():
             side_sonar_1 = ud.ranges[0] if ud.mode == 0 else ud.ranges[7]
             side_sonar_2 = ud.ranges[15] if ud.mode == 0 else ud.ranges[8]
@@ -129,8 +129,47 @@ def follow_wall(ud):
         ud.velocity = (0, 0, 0)
         return "found_convex"
 
+    if ud.mode == 0 and ud.ranges[15] < ud.clearance + clearance_tolerance \
+            and ud.ranges[0] > ud.ranges[15] * 2:
+        ud.velocity = (0, 0, 0)
+        return "found_convex"
+
     ud.velocity = (0.2, 0, 0)
 
+def follow_convex(ud):
+    clearance_tolerance = 0.1
+    ud.velocity = (0.2, 0, 0)
+
+    if(ud.mode == 1):
+        rate = rospy.Rate(100)
+        # Stop when range 8 has crossed wall at right
+        while not rospy.is_shutdown():
+            if(ud.ranges[8] > ud.clearance + clearance_tolerance * 2):
+                rospy.sleep(0.5)
+                ud.velocity = (0, 0, 0)
+                break
+            rate.sleep()
+
+        # Move close to the wall
+        while not rospy.is_shutdown():
+            ud.velocity = (0, -0.1, 0)
+
+            if(ud.ranges[9] < clearance_tolerance * 2):
+                ud.velocity = (0, 0, 0)
+                break
+            rate.sleep()
+
+        # Turn right
+        ud.velocity = (0, 0, -0.1)
+        rospy.sleep(0.5)
+        while not rospy.is_shutdown():
+            if(math.fabs(ud.ranges[7] - ud.ranges[8]) < 1e-3 and
+                       math.fabs(ud.ranges[0] - ud.ranges[15]) < 1e-3):
+                ud.velocity = (0, 0, 0)
+                break
+            rate.sleep()
+
+    return "convex_aligned"
 
 def align_with_corner(ud):
     front_min = min(ud.ranges[3], ud.ranges[4])
@@ -328,7 +367,7 @@ def construct():
                                                 output_keys=["velocity"],
                                                 outcomes=["found_corner", "found_convex"]),
                                transitions={"found_corner": "ALIGN_WITH_CORNER",
-                                            "found_convex": "preempted"})
+                                            "found_convex": "FOLLOW_CONVEX"})
 
         smach.StateMachine.add('ALIGN_WITH_CORNER',
                                PreemptableState(align_with_corner,
@@ -336,6 +375,14 @@ def construct():
                                                 output_keys=["velocity"],
                                                 outcomes=["corner_aligned"]),
                                transitions={'corner_aligned': 'FOLLOW_WALL'})
+
+        smach.StateMachine.add('FOLLOW_CONVEX',
+                               PreemptableState(follow_convex,
+                                                input_keys=["ranges", "clearance", "mode"],
+                                                output_keys=["velocity"],
+                                                outcomes=["convex_aligned"]),
+                               transitions={"convex_aligned": "FOLLOW_WALL"})
+
 
         smach.StateMachine.add('ALIGN',
                                PreemptableState(align,
