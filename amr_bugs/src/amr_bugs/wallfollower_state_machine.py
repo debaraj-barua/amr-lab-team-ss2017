@@ -39,39 +39,26 @@ from geometry_msgs.msg import Twist
 __all__ = ['construct']
 
 
-# =============================== YOUR CODE HERE ===============================
-# Instructions: write a function for each state of wallfollower state machine.
-#               The function should have exactly one argument (userdata
-#               dictionary), which you should use to access the input ranges
-#               and to provide the output velocity.
-#               The function should have at least one 'return' statement, which
-#               returns one of the possible outcomes of the state.
-#               The function should not block (i.e. have infinite loops), but
-#               rather it should implement just one iteration (check
-#               conditions, compute velocity), because it will be called
-#               regularly from the state machine.
-#
-# Hint: below is an example of a state that moves the robot forward until the
-#       front sonar readings are less than the desired clearance. It assumes
-#       that the corresponding variables ('front_min' and 'clearance') are
-#       available in the userdata dictionary.
-#
-#           def search(ud):
-#               if ud.front_min < ud.clearance:
-#                   return 'found_obstacle'
-#               ud.velocity = (1, 0, 0)
-# ==============================================================================
-
 def search(ud):
+    """
+    State machine starts from this state. The state ends when an obstacle is found.
+    :param ud: user data
+    :return: "found_obstacle" when it finds one
+    """
     front_min = min(ud.ranges[3], ud.ranges[4])
     if front_min < ud.clearance:
         ud.velocity = (0, 0, 0)
-        return 'found_obstacle'
+        return "found_obstacle"
 
     ud.velocity = (0.2, 0, 0)
 
 
 def align_distance_with_wall(ud):
+    """
+    Adjust the distance when the bot is too far or close to the wall
+    :param ud: user data
+    :return: "aligned_distance_with_wall" when done
+    """
     clearance_tolerance = 0.1
 
     rate = rospy.Rate(100)
@@ -103,12 +90,17 @@ def align_distance_with_wall(ud):
 
 
 def align_angle_with_wall(ud):
+    """
+    Orient the bot parallel to the wall when it is not
+    :param ud: user data
+    :return: "aligned_angle_with_wall" when done
+    """
     clearance_tolerance = 0.1
     front_min = min(ud.ranges[3], ud.ranges[4])
 
     rate = rospy.Rate(100)
 
-    # Rotate 90 degree when there is obstacle ahead
+    # Rotate when there is obstacle ahead
     if front_min < ud.clearance + clearance_tolerance:
         angular_velocity = -0.1 if ud.mode == 0 else 0.1
         ud.velocity = (0, 0, angular_velocity)
@@ -149,8 +141,12 @@ def align_angle_with_wall(ud):
 
     return "aligned_angle_with_wall"
 
-
 def follow_wall(ud):
+    """
+    Follows the wall and also discovers corner, convex and distance or angular disorientation.
+    :param ud: user data
+    :return: "found_corner", "found_convex", "found_angle_broken", "found_distance_broken" based on the findings
+    """
     clearance_tolerance = 0.1
     left_min = min(ud.ranges[0], ud.ranges[15])
     right_min = min(ud.ranges[7], ud.ranges[8])
@@ -158,7 +154,7 @@ def follow_wall(ud):
     front_min = min(ud.ranges[3], ud.ranges[4])
     if front_min < ud.clearance:
         ud.velocity = (0, 0, 0)
-        return 'found_corner'
+        return "found_corner"
 
     if ud.mode == 0:
         if ud.ranges[15] < ud.clearance + clearance_tolerance \
@@ -200,6 +196,11 @@ def follow_wall(ud):
 
 
 def follow_convex(ud):
+    """
+    Moves along a convex and returns to follow the wall when convex has passed
+    :param ud: user data
+    :return: "convex_aligned" when the convex has been passed
+    """
     clearance_tolerance = 0.1
     ud.velocity = (0.2, 0, 0)
 
@@ -261,7 +262,7 @@ def follow_convex(ud):
 
         # Stop when range 8 has crossed wall at right
         while not rospy.is_shutdown():
-            if (ud.ranges[8] > ud.clearance + clearance_tolerance * 2):
+            if ud.ranges[8] > ud.clearance + clearance_tolerance * 2:
                 rospy.sleep(0.5)
                 ud.velocity = (0, 0, 0)
                 break
@@ -271,7 +272,7 @@ def follow_convex(ud):
         while not rospy.is_shutdown():
             ud.velocity = (0, -0.1, 0)
 
-            if (ud.ranges[9] < clearance_tolerance * 2):
+            if ud.ranges[9] < clearance_tolerance * 2:
                 ud.velocity = (0, 0, 0)
                 break
             rate.sleep()
@@ -280,8 +281,8 @@ def follow_convex(ud):
         ud.velocity = (0, 0, -0.1)
         while not rospy.is_shutdown():
             if ud.ranges[5] < ud.clearance:
-                #ud.velocity = (0.2, 0, 0)
-                #rospy.sleep(1)
+                # ud.velocity = (0.2, 0, 0)
+                # rospy.sleep(1)
                 ud.velocity = (0, 0, 0)
                 break
             rate.sleep()
@@ -299,6 +300,11 @@ def follow_convex(ud):
 
 
 def align_with_corner(ud):
+    """
+    Take through a corner and follow the wall when the corner is passed
+    :param ud: user data
+    :return: "corner_aligned" when the corner is passed
+    """
     front_min = min(ud.ranges[3], ud.ranges[4])
     right_min = min(ud.ranges[7], ud.ranges[8])
     left_min = min(ud.ranges[0], ud.ranges[15])
@@ -466,31 +472,4 @@ def construct():
                                transitions={"convex_aligned": "FOLLOW_WALL"})
 
         pass
-        # =========================== YOUR CODE HERE ===========================
-        # Instructions: construct the state machine by adding the states that
-        #               you have implemented.
-        #               Below is an example how to add a state:
-        #
-        #                   smach.StateMachine.add('SEARCH',
-        #                                          PreemptableState(search,
-        #                                                           input_keys=['front_min', 'clearance'],
-        #                                                           output_keys=['velocity'],
-        #                                                           outcomes=['found_obstacle']),
-        #                                          transitions={'found_obstacle': 'ANOTHER_STATE'})
-        #
-        #               First argument is the state label, an arbitrary string
-        #               (by convention should be uppercase). Second argument is
-        #               an object that implements the state. In our case an
-        #               instance of the helper class PreemptableState is
-        #               created, and the state function in passed. Moreover,
-        #               we have to specify which keys in the userdata the
-        #               function will need to access for reading (input_keys)
-        #               and for writing (output_keys), and the list of possible
-        #               outcomes of the state. Finally, the transitions are
-        #               specified. Normally you would have one transition per
-        #               state outcome.
-        #
-        # Note: The first state that you add will become the initial state of
-        #       the state machine.
-        # ======================================================================
     return sm
