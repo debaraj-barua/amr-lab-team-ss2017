@@ -123,31 +123,30 @@ def align_angle_with_wall(ud):
                 break
 
             rate.sleep()
-    """
+
     # Align with the wall when not parallel
     else:
         if ud.mode == 0:
             if math.fabs(ud.ranges[0] - ud.ranges[15]) > 1e-1:
-                angular_velocity = 0.1 if ud.ranges[0] > ud.ranges[15] else -0.1
-                ud.velocity = (0, 0, angular_velocity)
-
                 while not rospy.is_shutdown():
+                    angular_velocity = 0.1 if ud.ranges[0] > ud.ranges[15] else -0.1
+                    ud.velocity = (0, 0, angular_velocity)
+
                     if math.fabs(ud.ranges[0] - ud.ranges[15]) < 1e-3:
                         ud.velocity = (0, 0, 0)
                         break
                     rate.sleep()
         else:
             if math.fabs(ud.ranges[7] - ud.ranges[8]) > 1e-1:
-                rospy.loginfo("{0} {1}".format(ud.ranges[7], ud.ranges[8]))
-                angular_velocity = 0.1 if ud.ranges[7] > ud.ranges[8] else -0.1
-                ud.velocity = (0, 0, angular_velocity)
-
                 while not rospy.is_shutdown():
+                    angular_velocity = -0.1 if ud.ranges[7] > ud.ranges[8] else 0.1
+                    ud.velocity = (0, 0, angular_velocity)
+
                     if math.fabs(ud.ranges[7] - ud.ranges[8]) < 1e-3:
                         ud.velocity = (0, 0, 0)
                         break
                     rate.sleep()
-    """
+
     return "aligned_angle_with_wall"
 
 
@@ -166,11 +165,14 @@ def follow_wall(ud):
                 and ud.ranges[0] > ud.ranges[15] * 2:
             ud.velocity = (0, 0, 0)
             return "found_convex"
-        """
-        if math.fabs(ud.ranges[0] - ud.ranges[15]) > 1e-1:
+
+        min_left = min(ud.ranges[6], ud.ranges[7], ud.ranges[8], ud.ranges[9])
+        max_left = max(ud.ranges[1], ud.ranges[0], ud.ranges[15], ud.ranges[14])
+
+        if max_left < min_left * 2 and math.fabs(ud.ranges[0] - ud.ranges[15]) > 1e-1:
             ud.velocity = (0, 0, 0)
             return "found_angle_broken"
-        """
+
         if (min(ud.ranges[1], left_min) < max(ud.ranges[1], left_min) * 2) and \
                 (left_min < ud.clearance - clearance_tolerance or left_min > ud.clearance + clearance_tolerance):
             ud.velocity = (0, 0, 0)
@@ -181,11 +183,14 @@ def follow_wall(ud):
                 and ud.ranges[7] > ud.ranges[8] * 2:
             ud.velocity = (0, 0, 0)
             return "found_convex"
-        """
-        if math.fabs(ud.ranges[7] - ud.ranges[8]) > 1e-1:
+
+        min_right = min(ud.ranges[6], ud.ranges[7], ud.ranges[8], ud.ranges[9])
+        max_right = max(ud.ranges[6], ud.ranges[7], ud.ranges[8], ud.ranges[9])
+
+        if max_right < min_right * 2 and math.fabs(ud.ranges[7] - ud.ranges[8]) > 1e-1:
             ud.velocity = (0, 0, 0)
             return "found_angle_broken"
-        """
+
         if (min(ud.ranges[6], right_min) < max(ud.ranges[6], right_min) * 2) and \
                 (right_min < ud.clearance - clearance_tolerance or right_min > ud.clearance + clearance_tolerance):
             ud.velocity = (0, 0, 0)
