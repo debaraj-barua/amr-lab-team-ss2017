@@ -74,12 +74,10 @@ def search(ud):
 def align_with_wall(ud):
     clearance_tolerance = 0.1
     front_min = min(ud.ranges[3], ud.ranges[4])
-    left_min = min(ud.ranges[0], ud.ranges[15])
-    right_min = min(ud.ranges[7], ud.ranges[8])
 
     rate = rospy.Rate(100)
 
-    if front_min < ud.clearance:
+    if front_min < ud.clearance + clearance_tolerance:
         angular_velocity = -0.1 if ud.mode == 0 else 0.1
         ud.velocity = (0, 0, angular_velocity)
 
@@ -94,6 +92,7 @@ def align_with_wall(ud):
                 break
 
             rate.sleep()
+
 
     # Adjust the distance
     while not rospy.is_shutdown():
@@ -141,6 +140,11 @@ def follow_wall(ud):
         if left_min < ud.clearance - clearance_tolerance or left_min > ud.clearance + clearance_tolerance:
             ud.velocity = (0, 0, 0)
             return "found_distance_break"
+
+        #if math.fabs(ud.ranges[0] - ud.ranges[15]) > clearance_tolerance:
+        #    ud.velocity = (0, 0, 0)
+        #    return "found_alignment_broken"
+
     else:
         if ud.ranges[8] < ud.clearance + clearance_tolerance \
                 and ud.ranges[7] > ud.ranges[8] * 2:
@@ -150,6 +154,10 @@ def follow_wall(ud):
         if right_min < ud.clearance - clearance_tolerance or right_min > ud.clearance + clearance_tolerance:
             ud.velocity = (0, 0, 0)
             return "found_distance_break"
+
+        #if math.fabs(ud.ranges[7] - ud.ranges[8]) > clearance_tolerance:
+        #    ud.velocity = (0, 0, 0)
+        #    return "found_alignment_broken"
 
     ud.velocity = (0.2, 0, 0)
 
@@ -213,59 +221,6 @@ def align_with_corner(ud):
 
     return "corner_aligned"
 
-
-def align(ud):
-    if (ud.turn == "left"):
-        ud.velocity = (0, 0, .1)
-
-        # rospy.loginfo("{0} {1}".format(ud.right_1, ud.right_2))
-        if (ud.front_min > ud.clearance and
-                    math.fabs(ud.right_1 - ud.right_2) < 1e-5):
-            ud.velocity = (0, 0, 0)
-            return "aligned"
-    else:
-        ud.velocity = (0, 0, -.1)
-
-        # rospy.loginfo("{0} {1}".format(ud.right_1, ud.right_2))
-        if (ud.front_min > ud.clearance and
-                    math.fabs(ud.left_1 - ud.left_2) < 1e-5):
-            ud.velocity = (0, 0, 0)
-            return "aligned"
-
-
-def forward(ud):
-    if ud.front_min < ud.clearance:
-        ud.velocity = (0, 0, 0)
-
-        if (ud.left > ud.right):
-            ud.turn = "left"
-        else:
-            ud.turn = "right"
-
-        return "found_corner"
-
-    elif ud.mode == 0 and ud.left_1 - ud.left_2 > 1.0:
-        ud.turn = "left"
-        return "found_corner"
-
-    elif ud.mode == 1 and ud.right_1 - ud.right_2 > 1.0:
-        ud.turn = "right"
-        return "found_corner"
-
-    y_velocity = 0.
-
-    if ud.mode == 0:
-        if ud.left - ud.clearance > 0.1:
-            y_velocity = 0.1
-        elif ud.clearance - ud.left > -0.1:
-            y_velocity = 0.1
-    else:
-        if ud.right - ud.clearance > 0.1:
-            y_velocity = -0.1
-        elif ud.clearance - ud.right > 0.1:
-            y_velocity = 0.1
-
-    ud.velocity = (0.2, y_velocity, 0)
 
 
 def set_ranges(self, ranges):
@@ -405,29 +360,6 @@ def construct():
                                                 output_keys=["velocity"],
                                                 outcomes=["convex_aligned"]),
                                transitions={"convex_aligned": "FOLLOW_WALL"})
-
-        smach.StateMachine.add('ALIGN',
-                               PreemptableState(align,
-                                                input_keys=["front_min", "right_top",
-                                                            "right_bottom", "clearance",
-                                                            "right_1", "right_2",
-                                                            "left_1", "left_2",
-                                                            "turn"],
-                                                output_keys=['velocity'],
-                                                outcomes=['aligned']),
-                               transitions={'aligned': 'FORWARD'})
-
-        smach.StateMachine.add('FORWARD',
-                               PreemptableState(forward,
-                                                input_keys=['front_min', 'clearance',
-                                                            "right_1", "right_2",
-                                                            "left_1", "left_2",
-                                                            "right_top", "right_bottom",
-                                                            "left_top", "left_bottom",
-                                                            "mode", "left", "right"],
-                                                output_keys=['velocity', "turn"],
-                                                outcomes=['found_corner']),
-                               transitions={'found_corner': 'ALIGN'})
 
         pass
         # =========================== YOUR CODE HERE ===========================
