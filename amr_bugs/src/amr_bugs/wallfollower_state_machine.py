@@ -45,285 +45,46 @@ def search(ud):
     :param ud: user data
     :return: "found_obstacle" when it finds one
     """
-    front_min = min(ud.ranges[3], ud.ranges[4])
-    if front_min < ud.clearance:
+    ud.velocity = (ud.max_forward_velocity, 0, 0)
+
+    if ud.front_min < ud.clearance:
         ud.velocity = (0, 0, 0)
         return "found_obstacle"
 
-    ud.velocity = (0.2, 0, 0)
 
-
-def align_distance_with_wall(ud):
+def align(ud):
     """
-    Adjust the distance when the bot is too far or close to the wall
+    Align with the wall based on mode
     :param ud: user data
-    :return: "aligned_distance_with_wall" when done
+    :return: "aligned" when it is aligned with the wall
     """
-    clearance_tolerance = 0.1
+    ud.velocity = (0, 0, ud.default_rotational_speed * ud.direction * 5)
 
-    rate = rospy.Rate(100)
-
-    # Adjust the distance
-    while not rospy.is_shutdown():
-        if ud.mode == 0:
-            distance_with_wall = min(ud.ranges[0], ud.ranges[15])
-
-            if math.fabs(distance_with_wall - ud.clearance) < clearance_tolerance:
-                ud.velocity = (0, 0, 0)
-                break
-
-            y_velocity = 0.1 if distance_with_wall > ud.clearance else -0.1
-            ud.velocity = (0, y_velocity, 0)
-
-        else:
-            distance_with_wall = min(ud.ranges[7], ud.ranges[8])
-            if math.fabs(distance_with_wall - ud.clearance) < clearance_tolerance:
-                ud.velocity = (0, 0, 0)
-                break
-
-            y_velocity = -0.1 if distance_with_wall > ud.clearance else 0.1
-            ud.velocity = (0, y_velocity, 0)
-
-        rate.sleep()
-
-    return "aligned_distance_with_wall"
-
-
-def align_angle_with_wall(ud):
-    """
-    Orient the bot parallel to the wall when it is not
-    :param ud: user data
-    :return: "aligned_angle_with_wall" when done
-    """
-    clearance_tolerance = 0.1
-    front_min = min(ud.ranges[3], ud.ranges[4])
-
-    rate = rospy.Rate(100)
-
-    # Rotate when there is obstacle ahead
-    if front_min < ud.clearance + clearance_tolerance:
-        angular_velocity = -0.1 if ud.mode == 0 else 0.1
-        ud.velocity = (0, 0, angular_velocity)
-
-        rospy.sleep(0.5)
-        while not rospy.is_shutdown():
-            side_sonar_1 = ud.ranges[0] if ud.mode == 0 else ud.ranges[7]
-            side_sonar_2 = ud.ranges[15] if ud.mode == 0 else ud.ranges[8]
-
-            if (math.fabs(side_sonar_1 - side_sonar_2) < 1e-3):
-                ud.velocity = (0, 0, 0)
-                break
-
-            rate.sleep()
-
-    # Align with the wall when not parallel
-    else:
-        if ud.mode == 0:
-            if math.fabs(ud.ranges[0] - ud.ranges[15]) > 1e-1:
-                while not rospy.is_shutdown():
-                    angular_velocity = 0.1 if ud.ranges[0] > ud.ranges[15] else -0.1
-                    ud.velocity = (0, 0, angular_velocity)
-
-                    if math.fabs(ud.ranges[0] - ud.ranges[15]) < 1e-3:
-                        ud.velocity = (0, 0, 0)
-                        break
-                    rate.sleep()
-        else:
-            if math.fabs(ud.ranges[7] - ud.ranges[8]) > 1e-1:
-                while not rospy.is_shutdown():
-                    angular_velocity = -0.1 if ud.ranges[7] > ud.ranges[8] else 0.1
-                    ud.velocity = (0, 0, angular_velocity)
-
-                    if math.fabs(ud.ranges[7] - ud.ranges[8]) < 1e-3:
-                        ud.velocity = (0, 0, 0)
-                        break
-                    rate.sleep()
-
-    return "aligned_angle_with_wall"
-
-def follow_wall(ud):
-    """
-    Follows the wall and also discovers corner, convex and distance or angular disorientation.
-    :param ud: user data
-    :return: "found_corner", "found_convex", "found_angle_broken", "found_distance_broken" based on the findings
-    """
-    clearance_tolerance = 0.1
-    left_min = min(ud.ranges[0], ud.ranges[15])
-    right_min = min(ud.ranges[7], ud.ranges[8])
-
-    front_min = min(ud.ranges[3], ud.ranges[4])
-    if front_min < ud.clearance:
+    if ud.front_min >= ud.clearance:
         ud.velocity = (0, 0, 0)
-        return "found_corner"
+        return "aligned"
 
-    if ud.mode == 0:
-        if ud.ranges[15] < ud.clearance + clearance_tolerance \
-                and ud.ranges[0] > ud.ranges[15] * 2:
-            ud.velocity = (0, 0, 0)
-            return "found_convex"
-
-        min_left = min(ud.ranges[6], ud.ranges[7], ud.ranges[8], ud.ranges[9])
-        max_left = max(ud.ranges[1], ud.ranges[0], ud.ranges[15], ud.ranges[14])
-
-        if max_left < min_left * 2 and math.fabs(ud.ranges[0] - ud.ranges[15]) > 1e-1:
-            ud.velocity = (0, 0, 0)
-            return "found_angle_broken"
-
-        if (min(ud.ranges[1], left_min) < max(ud.ranges[1], left_min) * 2) and \
-                (left_min < ud.clearance - clearance_tolerance or left_min > ud.clearance + clearance_tolerance):
-            ud.velocity = (0, 0, 0)
-            return "found_distance_broken"
-
-    else:
-        if ud.ranges[8] < ud.clearance + clearance_tolerance \
-                and ud.ranges[7] > ud.ranges[8] * 2:
-            ud.velocity = (0, 0, 0)
-            return "found_convex"
-
-        min_right = min(ud.ranges[6], ud.ranges[7], ud.ranges[8], ud.ranges[9])
-        max_right = max(ud.ranges[6], ud.ranges[7], ud.ranges[8], ud.ranges[9])
-
-        if max_right < min_right * 2 and math.fabs(ud.ranges[7] - ud.ranges[8]) > 1e-1:
-            ud.velocity = (0, 0, 0)
-            return "found_angle_broken"
-
-        if (min(ud.ranges[6], right_min) < max(ud.ranges[6], right_min) * 2) and \
-                (right_min < ud.clearance - clearance_tolerance or right_min > ud.clearance + clearance_tolerance):
-            ud.velocity = (0, 0, 0)
-            return "found_distance_broken"
-
-    ud.velocity = (0.2, 0, 0)
-
-
-def follow_convex(ud):
+def follow(ud):
     """
-    Moves along a convex and returns to follow the wall when convex has passed
+    Follow the wall
     :param ud: user data
-    :return: "convex_aligned" when the convex has been passed
+    :return: "found_unaligned" when not aligned with the wall
     """
-    clearance_tolerance = 0.1
-    ud.velocity = (0.2, 0, 0)
+    x_velocity = ud.max_forward_velocity
+    y_velocity = 0
+    angular_velocity = 0
 
-    rate = rospy.Rate(100)
+    if ud.front_min < ud.clearance:
+        ud.velocity = (0, 0, 0)
+        return "found_unaligned"
 
-    if ud.mode == 0:
-        # Skip if there is a narrow turning
-        if ud.ranges[0] < 1.:
-            while not rospy.is_shutdown():
-                if ud.ranges[14] > ud.clearance + clearance_tolerance:
-                    ud.velocity = (0, 0, 0)
-                    break
-                rate.sleep()
-            return "convex_aligned"
+    if ud.side_min < ud.clearance:
+        y_velocity = ud.max_forward_velocity * ud.direction
 
-        # Stop when range 15 has crossed wall at left
-        while not rospy.is_shutdown():
-            if ud.ranges[15] > ud.clearance + clearance_tolerance * 2:
-                rospy.sleep(0.5)
-                ud.velocity = (0, 0, 0)
-                break
-            rate.sleep()
+    if ud.top_corner > ud.clearance * 2.:
+        angular_velocity = ud.default_rotational_speed * ud.direction * -1.
 
-        # Move close to the wall
-        while not rospy.is_shutdown():
-            ud.velocity = (0, 0.1, 0)
-
-            if ud.ranges[14] < clearance_tolerance * 2:
-                ud.velocity = (0, 0, 0)
-                break
-            rate.sleep()
-
-        # Turn left
-        ud.velocity = (0, 0, 0.1)
-        while not rospy.is_shutdown():
-            if ud.ranges[2] < ud.clearance:
-                ud.velocity = (0, 0, 0)
-                break
-            rate.sleep()
-
-        # Go ahead to keep the left wall on its left
-        ud.velocity = (0.2, 0, 0)
-        rospy.sleep(1)
-        while not rospy.is_shutdown():
-            if ud.ranges[0] + clearance_tolerance > ud.ranges[15]:
-                ud.velocity = (0, 0, 0)
-                break
-            rate.sleep()
-
-    else:
-        # Skip if there is a narrow turning
-        if ud.ranges[7] < 1.:
-            while not rospy.is_shutdown():
-                if ud.ranges[9] > ud.clearance + clearance_tolerance:
-                    ud.velocity = (0, 0, 0)
-                    break
-                rate.sleep()
-            return "convex_aligned"
-
-        # Stop when range 8 has crossed wall at right
-        while not rospy.is_shutdown():
-            if ud.ranges[8] > ud.clearance + clearance_tolerance * 2:
-                rospy.sleep(0.5)
-                ud.velocity = (0, 0, 0)
-                break
-            rate.sleep()
-
-        # Move close to the wall
-        while not rospy.is_shutdown():
-            ud.velocity = (0, -0.1, 0)
-
-            if ud.ranges[9] < clearance_tolerance * 2:
-                ud.velocity = (0, 0, 0)
-                break
-            rate.sleep()
-
-        # Turn right
-        ud.velocity = (0, 0, -0.1)
-        while not rospy.is_shutdown():
-            if ud.ranges[5] < ud.clearance:
-                # ud.velocity = (0.2, 0, 0)
-                # rospy.sleep(1)
-                ud.velocity = (0, 0, 0)
-                break
-            rate.sleep()
-
-        # Go ahead to keep the right wall on its right
-        ud.velocity = (0.2, 0, 0)
-        rospy.sleep(1)
-        while not rospy.is_shutdown():
-            if ud.ranges[7] + clearance_tolerance > ud.ranges[8]:
-                ud.velocity = (0, 0, 0)
-                break
-            rate.sleep()
-
-    return "convex_aligned"
-
-
-def align_with_corner(ud):
-    """
-    Take through a corner and follow the wall when the corner is passed
-    :param ud: user data
-    :return: "corner_aligned" when the corner is passed
-    """
-    front_min = min(ud.ranges[3], ud.ranges[4])
-    right_min = min(ud.ranges[7], ud.ranges[8])
-    left_min = min(ud.ranges[0], ud.ranges[15])
-
-    if front_min < ud.clearance:
-        angular_velocity = 0.1 if left_min > right_min else -0.1
-        ud.velocity = (0, 0, angular_velocity)
-
-        rate = rospy.Rate(100)
-        rate.sleep()
-
-        while not rospy.is_shutdown():
-            if math.fabs(ud.ranges[11] - ud.ranges[12]) < 1e-3:  # Back sensors will be at right or left
-                ud.velocity = (0, 0, 0)
-                break
-            rate.sleep()
-
-    return "corner_aligned"
-
+    ud.velocity = (x_velocity, y_velocity, angular_velocity)
 
 def set_ranges(self, ranges):
     """
@@ -334,34 +95,13 @@ def set_ranges(self, ranges):
 
     self.userdata.ranges = map(lambda s: s.range, ranges)
 
+    self.userdata.front_min = min(ranges[2].range, ranges[3].range, ranges[4].range, ranges[5].range)
 
-    # ============================= YOUR CODE HERE =============================
-    # Instructions: store the ranges from a ROS message into the userdata
-    #               dictionary of the state machine.
-    #               'ranges' is a list or Range messages (that should be
-    #               familiar to you by now). It implies that to access the
-    #               actual range reading of, say, sonar number 3, you need to
-    #               write:
-    #
-    #                   ranges[3].range
-    #
-    #               For example, to create an item called 'front_min', which
-    #               contains the minimum between the ranges reported by the two
-    #               front sonars, you would write the following:
-    #
-    #                   self.userdata.front_min = min(ranges[3].range, ranges[4].range)
-    #
-    # Hint: you can just store the whole array of the range readings, but to
-    #       simplify the code in your state functions, you may compute
-    #       additional values, e.g. the difference between the reading of the
-    #       side sonars, or the minimum of all sonar readings, etc.
-    #
-    # Hint: you can access all the variables stored in userdata. This includes
-    #       the current settings of the wallfollower (that is clearance and the
-    #       mode of wallfollowing). Think about how you could make your state
-    #       functions independent of wallfollowing mode by smart preprocessing
-    #       of the sonar readings.
-    # ==========================================================================
+    self.userdata.side_min = min(ranges[7].range, ranges[8].range) if self.userdata.direction == 1 \
+        else min(ranges[0].range, ranges[15].range)
+
+    self.userdata.top_corner = min(ranges[5].range, ranges[6].range) if self.userdata.direction == 1 \
+        else min(ranges[1].range, ranges[2].range)
 
 
 def get_twist(self):
@@ -425,51 +165,29 @@ def construct():
     sm.userdata.direction = 1
 
     with sm:
-        smach.StateMachine.add('SEARCH',
+        smach.StateMachine.add("SEARCH",
                                PreemptableState(search,
-                                                input_keys=["ranges", "clearance", "mode"],
+                                                input_keys=["clearance", "max_forward_velocity", "front_min"],
                                                 output_keys=["velocity"],
                                                 outcomes=["found_obstacle"]),
-                               transitions={'found_obstacle': 'ALIGN_ANGLE_WITH_WALL'})
+                               transitions={"found_obstacle": "ALIGN"})
 
-        smach.StateMachine.add('ALIGN_ANGLE_WITH_WALL',
-                               PreemptableState(align_angle_with_wall,
-                                                input_keys=["ranges", "clearance", "mode"],
+        smach.StateMachine.add("ALIGN",
+                               PreemptableState(align,
+                                                input_keys=["clearance", "direction",
+                                                            "front_min", "default_rotational_speed"],
                                                 output_keys=["velocity"],
-                                                outcomes=["aligned_angle_with_wall"]),
-                               transitions={'aligned_angle_with_wall': "FOLLOW_WALL"})
+                                                outcomes=["aligned"]),
+                               transitions={"aligned": "FOLLOW"})
 
-        smach.StateMachine.add('ALIGN_DISTANCE_WITH_WALL',
-                               PreemptableState(align_distance_with_wall,
-                                                input_keys=["ranges", "clearance", "mode"],
+        smach.StateMachine.add("FOLLOW",
+                               PreemptableState(follow,
+                                                input_keys=["clearance", "direction",
+                                                            "max_forward_velocity", "default_rotational_speed",
+                                                            "front_min", "side_min", "top_corner"],
                                                 output_keys=["velocity"],
-                                                outcomes=["aligned_distance_with_wall"]),
-                               transitions={'aligned_distance_with_wall': 'FOLLOW_WALL'})
-
-        smach.StateMachine.add('FOLLOW_WALL',
-                               PreemptableState(follow_wall,
-                                                input_keys=["ranges", "clearance", "mode"],
-                                                output_keys=["velocity"],
-                                                outcomes=["found_corner", "found_convex",
-                                                          "found_distance_broken", "found_angle_broken"]),
-                               transitions={"found_corner": "ALIGN_WITH_CORNER",
-                                            "found_convex": "FOLLOW_CONVEX",
-                                            "found_distance_broken": "ALIGN_DISTANCE_WITH_WALL",
-                                            "found_angle_broken": "ALIGN_ANGLE_WITH_WALL"})
-
-        smach.StateMachine.add('ALIGN_WITH_CORNER',
-                               PreemptableState(align_with_corner,
-                                                input_keys=["ranges", "clearance", "mode"],
-                                                output_keys=["velocity"],
-                                                outcomes=["corner_aligned"]),
-                               transitions={'corner_aligned': 'FOLLOW_WALL'})
-
-        smach.StateMachine.add('FOLLOW_CONVEX',
-                               PreemptableState(follow_convex,
-                                                input_keys=["ranges", "clearance", "mode"],
-                                                output_keys=["velocity"],
-                                                outcomes=["convex_aligned"]),
-                               transitions={"convex_aligned": "FOLLOW_WALL"})
+                                                outcomes=["found_unaligned"]),
+                               transitions={"found_unaligned": "ALIGN"})
 
         pass
     return sm
