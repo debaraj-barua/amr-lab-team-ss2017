@@ -58,11 +58,12 @@ def align(ud):
     :param ud: user data
     :return: "aligned" when it is aligned with the wall
     """
-    ud.velocity = (0, 0, ud.default_rotational_speed * ud.direction * 5)
+    ud.velocity = (0, 0, ud.default_rotational_speed * ud.direction * 10)
 
     if ud.front_min >= ud.clearance:
         ud.velocity = (0, 0, 0)
         return "aligned"
+
 
 def follow(ud):
     """
@@ -85,6 +86,7 @@ def follow(ud):
         angular_velocity = ud.default_rotational_speed * ud.direction * -1.
 
     ud.velocity = (x_velocity, y_velocity, angular_velocity)
+
 
 def set_ranges(self, ranges):
     """

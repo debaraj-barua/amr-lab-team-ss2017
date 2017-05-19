@@ -54,12 +54,17 @@ class BugBrain:
     TOLERANCE = 0.3
 
     def __init__(self, goal_x, goal_y, side):
+        # Set goal point
         self.wp_goal = Point(goal_x, goal_y)
         self.mode = side
-        self.following_wall = False
 
-        self.folling_points = []
+        # Track points where the bot starts following the wall
+        self.following_points = []
+
+        # Track points where it leaves the wall and goes straight
         self.leaving_points = []
+
+        # Track repeated points. Goal is unreachable if the bot comes back to a repeated point
         self.visited_twice = []
 
     def follow_wall(self, x, y, theta):
@@ -67,13 +72,12 @@ class BugBrain:
         This function is called when the state machine enters the wallfollower
         state.
         """
-        self.following_wall = True
+        # Set start point if not set already
         if not hasattr(self, "wp_start"):
             self.wp_start = Point(x, y)
             self.ln_path = Line.from_points([self.wp_start, self.wp_goal])
 
-        self.folling_points.append(Point(x, y))
-        rospy.loginfo("Follow wall")
+        self.following_points.append(Point(x, y))
 
     def leave_wall(self, x, y, theta):
         """
@@ -81,14 +85,15 @@ class BugBrain:
         state.
         """
         self.leaving_points.append(Point(x, y))
-        self.following_wall = False
-        rospy.loginfo("Leave wall")
 
     def is_goal_unreachable(self, x, y, theta):
         """
         This function is regularly called from the wallfollower state to check
         the brain's belief about whether the goal is unreachable.
         """
+        # The goal is unreachable if it has been visited twice before
+        # and followed both straight line to goal and the wall.
+        # The time checking is done to handle repeated calls for the bot from same position.
         for item in self.visited_twice:
             if Point(x, y).distance_to(item[0]) <= self.TOLERANCE \
                     and math.fabs(item[1] - rospy.get_time()) > 5:
@@ -96,6 +101,9 @@ class BugBrain:
         return False
 
     def add_repeated_points(self, point):
+        """
+        Lists points visited twice if not listed already. Also keeps track of time of visit. 
+        """
         already_listed = False
         for item in self.visited_twice:
             distance = point.distance_to(item[0])
@@ -112,29 +120,27 @@ class BugBrain:
         the brain's belief about whether it is the right time (or place) to
         leave the wall and move straight to the goal.
         """
+        if hasattr(self, "ln_path"):
+            current_point = Point(x, y)
+            distance_from_line = math.fabs(self.ln_path.distance_to(current_point))
+            distance_from_start_following_point = math.fabs(current_point.distance_to(self.following_points[-1]))
 
-        if self.following_wall:
-            if hasattr(self, "ln_path"):
-                current_point = Point(x, y)
-                distance_from_line = math.fabs(self.ln_path.distance_to(current_point))
-                distance_from_start_following_point = math.fabs(current_point.distance_to(self.folling_points[-1]))
+            # Leave the wall when back on track and not if it just started following the wall
+            if distance_from_line <= self.TOLERANCE and \
+                            distance_from_start_following_point >= self.TOLERANCE * 2:
 
-                # Leave the wall when back on track and not if it just started following the wall
-                if distance_from_line <= self.TOLERANCE and \
-                                distance_from_start_following_point >= self.TOLERANCE * 2:
+                # Don't leave the wall if it has been left before at same point
+                visited_before = False
+                for point in self.leaving_points:
+                    distance_from_point = current_point.distance_to(point)
+                    if distance_from_point <= self.TOLERANCE * 3:
+                        visited_before = True
+                        # Keep track of the point to decide on unreachable goal
+                        self.add_repeated_points(point)
+                        break
 
-                    # Don't leave the wall if it has been left before at same point
-                    visited_before = False
-                    for point in self.leaving_points:
-                        distance_from_point = current_point.distance_to(point)
-                        if distance_from_point <= self.TOLERANCE * 3:
-                            visited_before = True
-                            # Keep track of the point to decide on unreachable goal
-                            self.add_repeated_points(point)
-                            break
-
-                    if not visited_before:
-                        return True
+                if not visited_before:
+                    return True
 
         return False
 
