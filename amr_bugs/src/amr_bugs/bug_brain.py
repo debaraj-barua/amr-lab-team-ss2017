@@ -103,9 +103,23 @@ class BugBrain:
                 current_point = Point(x, y)
                 distance_from_line = math.fabs(self.ln_path.distance_to(current_point))
                 distance_from_start_following_point = math.fabs(current_point.distance_to(self.folling_points[-1]))
+
+                # Leave the wall when back on track and not if it just started following the wall
                 if distance_from_line <= self.TOLERANCE and \
                                 distance_from_start_following_point >= self.TOLERANCE * 2:
-                    return True
+
+                    # Don't leave the wall if it has been left before at same point
+                    visited_before = False
+                    for point in self.leaving_points:
+                        distance_from_point = current_point.distance_to(point)
+                        rospy.loginfo("Current point {0} {1}".format(current_point.x, current_point.y))
+                        rospy.loginfo("Letf at point {0} {1} at distance {2}".format(point.x, point.y, distance_from_point))
+                        if distance_from_point <= self.TOLERANCE * 3:
+                            visited_before = True
+                            break
+
+                    if not visited_before:
+                        return True
 
         rospy.loginfo("is time to leave wall")
         return False
