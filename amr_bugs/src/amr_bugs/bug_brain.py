@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 
-#=============================== YOUR CODE HERE ===============================
+# =============================== YOUR CODE HERE ===============================
 # Instructions: complete the currently empty BugBrain class. A new instance of
 #               this class will be created for each new move_to command. The
 #               constructor receives the goal specification and the mode of
@@ -45,40 +45,50 @@
 #           self.ln_three = Line.from_points([p1, p2]) # if you are using 'planar'
 
 import rospy
+import math
 from planar import Point
 from planar.c import Line
-from math import degrees
+
 
 class BugBrain:
-
     TOLERANCE = 0.3
 
     def __init__(self, goal_x, goal_y, side):
         self.wp_goal = Point(goal_x, goal_y)
         self.mode = side
+        self.following_wall = False
+
+        self.folling_points = []
+        self.leaving_points = []
 
     def follow_wall(self, x, y, theta):
         """
         This function is called when the state machine enters the wallfollower
         state.
         """
+        self.following_wall = True
         if not hasattr(self, "wp_start"):
             self.wp_start = Point(x, y)
             self.ln_path = Line.from_points([self.wp_start, self.wp_goal])
+
+        self.folling_points.append(Point(x, y))
+        rospy.loginfo("Follow wall")
 
     def leave_wall(self, x, y, theta):
         """
         This function is called when the state machine leaves the wallfollower
         state.
         """
-        # compute and store necessary variables
-        pass
+        self.leaving_points.append(Point(x, y))
+        self.following_wall = False
+        rospy.loginfo("Leave wall")
 
     def is_goal_unreachable(self, x, y, theta):
         """
         This function is regularly called from the wallfollower state to check
         the brain's belief about whether the goal is unreachable.
         """
+        rospy.loginfo("Is goal unreachable")
         return False
 
     def is_time_to_leave_wall(self, x, y, theta):
@@ -87,6 +97,17 @@ class BugBrain:
         the brain's belief about whether it is the right time (or place) to
         leave the wall and move straight to the goal.
         """
+
+        if self.following_wall:
+            if hasattr(self, "ln_path"):
+                current_point = Point(x, y)
+                distance_from_line = math.fabs(self.ln_path.distance_to(current_point))
+                distance_from_start_following_point = math.fabs(current_point.distance_to(self.folling_points[-1]))
+                if distance_from_line <= self.TOLERANCE and \
+                                distance_from_start_following_point >= self.TOLERANCE * 2:
+                    return True
+
+        rospy.loginfo("is time to leave wall")
         return False
 
-#==============================================================================
+# ==============================================================================
