@@ -44,20 +44,27 @@
 #           self.ln_two = [p1, p2]
 #           self.ln_three = Line.from_points([p1, p2]) # if you are using 'planar'
 
+import rospy
+from planar import Point
+from planar.c import Line
+from math import degrees
+
 class BugBrain:
 
     TOLERANCE = 0.3
 
     def __init__(self, goal_x, goal_y, side):
-        pass
+        self.wp_goal = Point(goal_x, goal_y)
+        self.mode = side
 
     def follow_wall(self, x, y, theta):
         """
         This function is called when the state machine enters the wallfollower
         state.
         """
-        # compute and store necessary variables
-        pass
+        if not hasattr(self, "wp_start"):
+            self.wp_start = Point(x, y)
+            self.ln_path = Line.from_points([self.wp_start, self.wp_goal])
 
     def leave_wall(self, x, y, theta):
         """
