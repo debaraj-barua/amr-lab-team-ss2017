@@ -60,6 +60,7 @@ class BugBrain:
 
         self.folling_points = []
         self.leaving_points = []
+        self.visited_twice = []
 
     def follow_wall(self, x, y, theta):
         """
@@ -88,8 +89,22 @@ class BugBrain:
         This function is regularly called from the wallfollower state to check
         the brain's belief about whether the goal is unreachable.
         """
-        rospy.loginfo("Is goal unreachable")
+        for item in self.visited_twice:
+            if Point(x, y).distance_to(item[0]) <= self.TOLERANCE \
+                    and math.fabs(item[1] - rospy.get_time()) > 5:
+                return True
         return False
+
+    def add_repeated_points(self, point):
+        already_listed = False
+        for item in self.visited_twice:
+            distance = point.distance_to(item[0])
+            if distance <= self.TOLERANCE:
+                already_listed = True
+                break
+
+        if not already_listed:
+            self.visited_twice.append((point, rospy.get_time()))
 
     def is_time_to_leave_wall(self, x, y, theta):
         """
@@ -112,16 +127,15 @@ class BugBrain:
                     visited_before = False
                     for point in self.leaving_points:
                         distance_from_point = current_point.distance_to(point)
-                        rospy.loginfo("Current point {0} {1}".format(current_point.x, current_point.y))
-                        rospy.loginfo("Letf at point {0} {1} at distance {2}".format(point.x, point.y, distance_from_point))
                         if distance_from_point <= self.TOLERANCE * 3:
                             visited_before = True
+                            # Keep track of the point to decide on unreachable goal
+                            self.add_repeated_points(point)
                             break
 
                     if not visited_before:
                         return True
 
-        rospy.loginfo("is time to leave wall")
         return False
 
 # ==============================================================================
