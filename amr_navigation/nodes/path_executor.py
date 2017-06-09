@@ -27,16 +27,24 @@ class PathExecutor:
 
         rospy.loginfo("Received {0} poses".format(len(goal.path.poses)))
 
-        move = MoveToGoal()
-        move.target_pose.pose = goal.path.poses[0].pose
+        self._poses = goal.path.poses
+        self._poses_idx = 0
 
-        self._client.send_goal(move)
+        move = MoveToGoal()
+        move.target_pose.pose = self._poses[self._poses_idx].pose
+
+        self._client.send_goal(move, done_cb=self.move_to_done_cb)
 
         self._server.set_succeeded(ExecutePathResult())
 
     def move_to_done_cb(self, state, result):
-        pass
+        self._poses_idx = self._poses_idx + 1
+        
+        if(self._poses_idx < len(self._poses)):
+            move = MoveToGoal()
+            move.target_pose.pose = self._poses[self._poses_idx].pose
 
+            self._client.send_goal(move, done_cb=self.move_to_done_cb)
 
 if __name__ == '__main__':
     rospy.init_node(NODE)
