@@ -16,10 +16,23 @@ from amr_msgs.msg import MoveToAction, MoveToGoal, ExecutePathAction, \
 class PathExecutor:
 
     def __init__(self):
-        pass
+        self._client = SimpleActionClient('/bug2/move_to', MoveToAction)
+
+        self._action_name = rospy.get_name() + "/execute_path"
+        self._server = SimpleActionServer(self._action_name, ExecutePathAction, execute_cb=self.execute_cb, auto_start = False)
+        self._server.start()
 
     def execute_cb(self, goal):
-        pass
+        self._client.wait_for_server()
+
+        rospy.loginfo("Received {0} poses".format(len(goal.path.poses)))
+
+        move = MoveToGoal()
+        move.target_pose.pose = goal.path.poses[0].pose
+
+        self._client.send_goal(move)
+
+        self._server.set_succeeded(ExecutePathResult())
 
     def move_to_done_cb(self, state, result):
         pass
