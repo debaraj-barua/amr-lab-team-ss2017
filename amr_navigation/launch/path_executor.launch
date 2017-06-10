@@ -18,8 +18,8 @@
   </node>
 
   <!-- Motion controller node with "omni" velocity controller -->
-  <node pkg="amr_navigation" type="motion_controller" name="motion_controller" required="true">
-    <param name="controller" value="omni" type="str"/>
+  <node pkg="amr_navigation" type="motion_controller.py" name="motion_controller" required="true">
+    <param name="controller" value="diff" type="str"/>
   </node>
 
   <!-- Obstacle detector node -->
