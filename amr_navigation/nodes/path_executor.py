@@ -35,16 +35,25 @@ class PathExecutor:
 
         self._client.send_goal(move, done_cb=self.move_to_done_cb)
 
-        self._server.set_succeeded(ExecutePathResult())
+        rospy.loginfo("Test :::::::::::::::::::::::::")
+
+        rospy.spin()
 
     def move_to_done_cb(self, state, result):
+        # Send feedback
+        feedback = ExecutePathFeedback()
+        feedback.pose=self._poses[self._poses_idx]
+        self._server.publish_feedback(feedback)
+
         self._poses_idx = self._poses_idx + 1
-        
+
         if(self._poses_idx < len(self._poses)):
             move = MoveToGoal()
             move.target_pose.pose = self._poses[self._poses_idx].pose
 
             self._client.send_goal(move, done_cb=self.move_to_done_cb)
+        else:
+            self._server.set_succeeded(ExecutePathResult())
 
 if __name__ == '__main__':
     rospy.init_node(NODE)
