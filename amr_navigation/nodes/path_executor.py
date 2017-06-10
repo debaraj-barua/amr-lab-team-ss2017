@@ -16,6 +16,9 @@ from amr_msgs.msg import MoveToAction, MoveToGoal, ExecutePathAction, \
 class PathExecutor:
 
     def __init__(self):
+        self._poses = []
+        self._poses_idx = 0
+
         self._client = SimpleActionClient('/bug2/move_to', MoveToAction)
 
         self._action_name = rospy.get_name() + "/execute_path"
@@ -25,8 +28,6 @@ class PathExecutor:
     def execute_cb(self, goal):
         self._client.wait_for_server()
 
-        rospy.loginfo("Received {0} poses".format(len(goal.path.poses)))
-
         self._poses = goal.path.poses
         self._poses_idx = 0
 
@@ -35,14 +36,13 @@ class PathExecutor:
 
         self._client.send_goal(move, done_cb=self.move_to_done_cb)
 
-        rospy.loginfo("Test :::::::::::::::::::::::::")
-
         rospy.spin()
 
     def move_to_done_cb(self, state, result):
         # Send feedback
         feedback = ExecutePathFeedback()
         feedback.pose=self._poses[self._poses_idx]
+        feedback.reached = True if state == 3 else False
         self._server.publish_feedback(feedback)
 
         self._poses_idx = self._poses_idx + 1
