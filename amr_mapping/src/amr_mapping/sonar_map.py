@@ -172,7 +172,7 @@ class SonarMap:
         #============================== YOUR CODE HERE ==============================
         #Instructions: compute the distance probability function for the "probably
         #              empty" region.
-        return 0.0
+        return 1-((delta)/sensed_distance-uncertainty)**2
 
     
     def _er_occ(self, sensed_distance, delta, uncertainty):
@@ -203,7 +203,7 @@ class SonarMap:
         #============================== YOUR CODE HERE ==============================
         #Instructions: compute the distance probability function for the "probably
         #              occupied" region.
-        return 0.0
+        return 1-((delta-sensed_distance)/uncertainty)**2
     
     
     def _ea(self, sonar_fov, theta):
@@ -229,7 +229,10 @@ class SonarMap:
         #============================== YOUR CODE HERE ==============================
         #Instructions: compute the angular probability function (it is same for both
         #              the "probably empty" and the "probably occupied" region.
-        return 0.0
+        if abs(theta)<=(sonar_fov/2):
+            return 1-(2*theta/sonar_fov)**2
+        else:
+            return 0.0
     
     
     def _convert_to_map(self, c_pos):
