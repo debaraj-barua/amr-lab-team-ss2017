@@ -128,16 +128,29 @@ class SonarMap:
         """
         c_sonar_pos_x,c_sonar_pos_y=self._convert_to_cell((m_sonar_x,m_sonar_y))
         
-        c_cone_length=max_range/self._resolution
+        c_cone_length=registerd_range/self._resolution
 
         cone = MapStoreCone(c_sonar_pos_x, c_sonar_pos_y, sonar_theta,
                             field_of_view, c_cone_length)        
         for cell in cone:
             cell=self._convert_to_map(*cell) 
             if not cell is None:
-                occ_val = self._map_occupied.get(*cell)
                 c_x,c_y=cell
-                self._map_occupied.set(c_x, c_y, occ_val)
+                c_delta = self.euclidian_distance((c_sonar_pos_x,c_sonar_pos_y),cell)
+                c_theta = self._get_angle_between(cell,(c_sonar_pos_x,c_sonar_pos_y))
+                prob_ang=self._ea(field_of_view, c_theta)
+                occ = self._map_occupied.get(*cell)
+                emp= self._map_free.get(*cell)
+                
+                #sself._map_occupied.set(c_x, c_y, occ_val)
+                if (c_delta<c_cone_length-uncertainty):
+                    emp_k=self._er_free(c_cone_length,c_delta,uncertainty)*prob_ang
+                    emp=emp+emp_k-emp*emp_k
+                    self._map_free.set(c_x,c_y,emp)
+                elif (c_delta>=c_cone_length-uncertainty) and (c_delta<=c_cone_length+uncertainty) :
+                    occ_k=self._er_occ(c_cone_length,c_delta,uncertainty)*prob_ang       
+                    occ_k_c=occ_k*(1-emp)
+
             else:
                 continue
         
@@ -260,10 +273,16 @@ class SonarMap:
         m_x, m_y = m_pos
         c_x, c_y = int(round(m_x / self._resolution)), int(round(m_y / self._resolution))
         if ( self._map_combined.is_in_x_range(c_x) and
-             self._map_combined.is_in_y_range(c_y)      ):
+             self._map_combined.is_in_y_range(c_y)):
             return (c_x, c_y)
         else:
             return None
+     
+    def _get_angle_between(self, cell_pos,sensor_pos):
+         dx = cell_pos[0] - sensor_pos[0]
+         dy = cell_pos[1] - sensor_pos[1]
+         
+         return math.atan2(dy,dx)
 
 
     def get_grid_size_x(self):
@@ -291,6 +310,7 @@ class SonarMap:
         
     def get_map_occupied_data(self):
         return self._map_occupied.get_publish_data(0.0, 1.0)
+   
     
     
     @staticmethod
