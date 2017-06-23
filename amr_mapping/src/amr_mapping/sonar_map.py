@@ -126,6 +126,22 @@ class SonarMap:
 
         //============================================================================
         """
+        c_sonar_pos_x,c_sonar_pos_y=self._convert_to_cell((m_sonar_x,m_sonar_y))
+        
+        c_cone_length=max_range/self._resolution
+
+        cone = MapStoreCone(c_sonar_pos_x, c_sonar_pos_y, sonar_theta,
+                            field_of_view, c_cone_length)        
+        for cell in cone:
+            cell=self._convert_to_map(*cell) 
+            if not cell is None:
+                occ_val = self._map_occupied.get(*cell)
+                c_x,c_y=cell
+                self._map_occupied.set(c_x, c_y, occ_val)
+            else:
+                continue
+        
+        
         pass
     
     
