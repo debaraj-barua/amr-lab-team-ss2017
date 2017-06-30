@@ -132,28 +132,69 @@ class SonarMap:
 
         cone = MapStoreCone(c_sonar_pos_x, c_sonar_pos_y, sonar_theta,
                             field_of_view, c_cone_length)        
+        sum_occ=0.0
+        
         for cell in cone:
-            cell=self._convert_to_map(*cell) 
-            if not cell is None:
-                c_x,c_y=cell
-                c_delta = self.euclidian_distance((c_sonar_pos_x,c_sonar_pos_y),cell)
-                c_theta = self._get_angle_between(cell,(c_sonar_pos_x,c_sonar_pos_y))
-                prob_ang=self._ea(field_of_view, c_theta)
-                occ = self._map_occupied.get(*cell)
-                emp= self._map_free.get(*cell)
+            c_x,c_y=cell
+            
+            if self._map_combined.is_in_x_range(c_x) == True and self._map_combined.is_in_y_range(c_y) == True:
+                m_c_x,m_c_y=self._convert_to_map(cell) 
+                c_delta = self.euclidian_distance((m_sonar_x,m_sonar_y),( m_c_x,m_c_y))
                 
-                #sself._map_occupied.set(c_x, c_y, occ_val)
-                if (c_delta<c_cone_length-uncertainty):
-                    emp_k=self._er_free(c_cone_length,c_delta,uncertainty)*prob_ang
+                c_angle= math.atan2(m_c_y-m_sonar_y,m_c_x-m_sonar_x)
+                c_theta =self.angular_distance(sonar_theta, c_angle) 
+                prob_ang=self._ea(field_of_view, c_theta)
+
+                occ = self._map_occupied.get(c_x, c_y)
+                emp= self._map_free.get(c_x, c_y)
+                
+                if c_delta<(registerd_range-uncertainty):
+                    emp_k=self._er_free(registerd_range,c_delta,uncertainty)*prob_ang
                     emp=emp+emp_k-emp*emp_k
                     self._map_free.set(c_x,c_y,emp)
-                elif (c_delta>=c_cone_length-uncertainty) and (c_delta<=c_cone_length+uncertainty) :
-                    occ_k=self._er_occ(c_cone_length,c_delta,uncertainty)*prob_ang       
+                elif (c_delta>=(registerd_range-uncertainty)) and (c_delta<=(registerd_range+uncertainty)) :
+                    occ_k=self._er_occ(registerd_range,c_delta,uncertainty)*prob_ang       
                     occ_k_c=occ_k*(1-emp)
-
+                    sum_occ+=occ_k_c
             else:
                 continue
-        
+        #print  "!!!!!!!!!!!!", sum_occ
+        for cell in cone:
+            c_x,c_y=cell
+
+            if self._map_combined.is_in_x_range(c_x) == True and self._map_combined.is_in_y_range(c_y) == True:
+                m_c_x,m_c_y=self._convert_to_map(cell) 
+
+                c_delta = self.euclidian_distance((c_sonar_pos_x,c_sonar_pos_y),( m_c_x,m_c_y))
+
+                c_angle= math.atan2(m_c_y-m_sonar_y,m_c_x-m_sonar_x)
+                c_theta =self.angular_distance(sonar_theta, c_angle) 
+
+                prob_ang=self._ea(field_of_view, c_theta)
+                
+                occ = self._map_occupied.get(c_x, c_y)
+                emp= self._map_free.get(c_x, c_y)
+                
+                if (c_delta>=registerd_range-uncertainty) and (c_delta<=registerd_range+uncertainty) :
+                    occ_k=self._er_occ(registerd_range,c_delta,uncertainty)*prob_ang       
+                    occ_k_c=occ_k*(1-emp)
+                    if sum_occ>0:
+                        occ_k_n=occ_k_c/sum_occ
+                    if occ_k_n<0:
+                        #self._map_occupied.set(c_x, c_y, 0.0)
+                        occ_k_n=0
+                    elif occ_k_n>1:
+                        occ_k_n=1
+                    
+                    occ=occ+occ_k_n-occ*occ_k_n
+                    self._map_occupied.set(c_x, c_y, occ)
+               
+                if(occ>=emp):
+                    self._map_occupied.set(c_x, c_y, occ)
+                else:
+                    self._map_free.set(c_x,c_y,emp)
+            else:
+                continue
         
         pass
     
