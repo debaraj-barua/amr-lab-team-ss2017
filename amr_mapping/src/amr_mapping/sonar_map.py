@@ -165,7 +165,7 @@ class SonarMap:
             if self._map_combined.is_in_x_range(c_x) == True and self._map_combined.is_in_y_range(c_y) == True:
                 m_c_x,m_c_y=self._convert_to_map(cell) 
 
-                c_delta = self.euclidian_distance((c_sonar_pos_x,c_sonar_pos_y),( m_c_x,m_c_y))
+                c_delta = self.euclidian_distance((m_sonar_x,m_sonar_y),( m_c_x,m_c_y))
 
                 c_angle= math.atan2(m_c_y-m_sonar_y,m_c_x-m_sonar_x)
                 c_theta =self.angular_distance(sonar_theta, c_angle) 
@@ -174,10 +174,11 @@ class SonarMap:
                 
                 occ = self._map_occupied.get(c_x, c_y)
                 emp= self._map_free.get(c_x, c_y)
-                
+
                 if (c_delta>=registerd_range-uncertainty) and (c_delta<=registerd_range+uncertainty) :
                     occ_k=self._er_occ(registerd_range,c_delta,uncertainty)*prob_ang       
                     occ_k_c=occ_k*(1-emp)
+                    occ_k_n = 0
                     if sum_occ>0:
                         occ_k_n=occ_k_c/sum_occ
                     if occ_k_n<0:
@@ -190,9 +191,9 @@ class SonarMap:
                     self._map_occupied.set(c_x, c_y, occ)
                
                 if(occ>=emp):
-                    self._map_occupied.set(c_x, c_y, occ)
+                    self._map_combined.set(c_x, c_y, occ)
                 else:
-                    self._map_free.set(c_x,c_y,emp)
+                    self._map_combined.set(c_x,c_y,-emp)
             else:
                 continue
         
