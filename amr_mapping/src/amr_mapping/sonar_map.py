@@ -10,6 +10,7 @@ from amr_mapping.map_store_py import MapStore, MapStoreCone
 
 import random
 
+
 class SonarMap:
     """
     Ported from C++ by Ivan Vishiakou
@@ -40,7 +41,6 @@ class SonarMap:
     arguments and internal/local variables.
     """
 
-    
     def __init__(self, resolution, m_size_x, m_size_y):
         """
         This constructor creates a map of given dimensions.
@@ -52,18 +52,17 @@ class SonarMap:
             m_size_y (float) : initial size of the map in y direction (meters).
         """
         self._resolution = resolution
-        self._c_size_x = int(round(m_size_x/resolution+2))|1
-        self._c_size_y = int(round(m_size_y/resolution+2))|1
-        self._m_size_x = resolution*self._c_size_x
-        self._m_size_y = resolution*self._c_size_y
-        self._m_min_x = -self._m_size_x/2.0
-        self._m_min_y = -self._m_size_y/2.0
-        
+        self._c_size_x = int(round(m_size_x / resolution + 2)) | 1
+        self._c_size_y = int(round(m_size_y / resolution + 2)) | 1
+        self._m_size_x = resolution * self._c_size_x
+        self._m_size_y = resolution * self._c_size_y
+        self._m_min_x = -self._m_size_x / 2.0
+        self._m_min_y = -self._m_size_y / 2.0
+
         self._map_combined = MapStore(self._c_size_x, self._c_size_y)
         self._map_free = MapStore(self._c_size_x, self._c_size_y)
         self._map_occupied = MapStore(self._c_size_x, self._c_size_y)
-    
-    
+
     def add_scan(self, m_sonar_x, m_sonar_y, sonar_theta, field_of_view,
                  max_range, registerd_range, uncertainty):
         """
@@ -80,8 +79,7 @@ class SonarMap:
         expressed as the standard deviation.
         """
 
-        
-        #============================== YOUR CODE HERE ==============================
+        # ============================== YOUR CODE HERE ==============================
         """
         Instructions: implement the routine that performs map update based on a
                       single sonar reading.
@@ -126,80 +124,90 @@ class SonarMap:
 
         //============================================================================
         """
-        c_sonar_pos_x,c_sonar_pos_y=self._convert_to_cell((m_sonar_x,m_sonar_y))
-        
-        c_cone_length=registerd_range/self._resolution
+        c_sonar_pos_x, c_sonar_pos_y = self._convert_to_cell((m_sonar_x, m_sonar_y))
+
+        c_cone_length = registerd_range / self._resolution
 
         cone = MapStoreCone(c_sonar_pos_x, c_sonar_pos_y, sonar_theta,
-                            field_of_view, c_cone_length)        
-        sum_occ=0.0
-        
-        for cell in cone:
-            c_x,c_y=cell
-            
-            if self._map_combined.is_in_x_range(c_x) == True and self._map_combined.is_in_y_range(c_y) == True:
-                m_c_x,m_c_y=self._convert_to_map(cell) 
-                c_delta = self.euclidian_distance((m_sonar_x,m_sonar_y),( m_c_x,m_c_y))
-                
-                c_angle= math.atan2(m_c_y-m_sonar_y,m_c_x-m_sonar_x)
-                c_theta =self.angular_distance(sonar_theta, c_angle) 
-                prob_ang=self._ea(field_of_view, c_theta)
+                            field_of_view, c_cone_length)
+        sum_occ = 0.0
 
-                occ = self._map_occupied.get(c_x, c_y)
-                emp= self._map_free.get(c_x, c_y)
-                
-                if c_delta<(registerd_range-uncertainty):
-                    emp_k=self._er_free(registerd_range,c_delta,uncertainty)*prob_ang
-                    emp=emp+emp_k-emp*emp_k
-                    self._map_free.set(c_x,c_y,emp)
-                elif (c_delta>=(registerd_range-uncertainty)) and (c_delta<=(registerd_range+uncertainty)) :
-                    occ_k=self._er_occ(registerd_range,c_delta,uncertainty)*prob_ang       
-                    occ_k_c=occ_k*(1-emp)
-                    sum_occ+=occ_k_c
+        '''
+        Update probability to be empty for each cell in the cone
+        '''
+        for cell in cone:
+            c_x, c_y = cell
+
+            if self._map_combined.is_in_x_range(c_x) == True and self._map_combined.is_in_y_range(c_y) == True:
+                m_c_x, m_c_y = self._convert_to_map(cell)
+                c_delta = self.euclidian_distance((m_sonar_x, m_sonar_y), (m_c_x, m_c_y))
+
+                c_angle = math.atan2(m_c_y - m_sonar_y, m_c_x - m_sonar_x)
+                c_theta = self.angular_distance(sonar_theta, c_angle)
+                prob_ang = self._ea(field_of_view, c_theta)
+
+                emp = self._map_free.get(c_x, c_y)
+
+                '''
+                Calculate probability for empty and sum of probability for occupied to use in normalization
+                while calculating probability for occupied
+                '''
+                if c_delta < (registerd_range - uncertainty):
+                    emp_k = self._er_free(registerd_range, c_delta, uncertainty) * prob_ang
+                    emp = emp + emp_k - emp * emp_k
+                    self._map_free.set(c_x, c_y, emp)
+                elif (c_delta >= (registerd_range - uncertainty)) and (c_delta <= (registerd_range + uncertainty)):
+                    occ_k = self._er_occ(registerd_range, c_delta, uncertainty) * prob_ang
+                    occ_k_c = occ_k * (1 - emp)
+                    sum_occ += occ_k_c
             else:
                 continue
-        #print  "!!!!!!!!!!!!", sum_occ
+
+        '''
+        Update probability to be occupied for each cell in cone
+        '''
         for cell in cone:
-            c_x,c_y=cell
+            c_x, c_y = cell
 
             if self._map_combined.is_in_x_range(c_x) == True and self._map_combined.is_in_y_range(c_y) == True:
-                m_c_x,m_c_y=self._convert_to_map(cell) 
+                m_c_x, m_c_y = self._convert_to_map(cell)
 
-                c_delta = self.euclidian_distance((m_sonar_x,m_sonar_y),( m_c_x,m_c_y))
+                c_delta = self.euclidian_distance((m_sonar_x, m_sonar_y), (m_c_x, m_c_y))
 
-                c_angle= math.atan2(m_c_y-m_sonar_y,m_c_x-m_sonar_x)
-                c_theta =self.angular_distance(sonar_theta, c_angle) 
+                c_angle = math.atan2(m_c_y - m_sonar_y, m_c_x - m_sonar_x)
+                c_theta = self.angular_distance(sonar_theta, c_angle)
 
-                prob_ang=self._ea(field_of_view, c_theta)
-                
+                prob_ang = self._ea(field_of_view, c_theta)
+
                 occ = self._map_occupied.get(c_x, c_y)
-                emp= self._map_free.get(c_x, c_y)
+                emp = self._map_free.get(c_x, c_y)
 
-                if (c_delta>=registerd_range-uncertainty) and (c_delta<=registerd_range+uncertainty) :
-                    occ_k=self._er_occ(registerd_range,c_delta,uncertainty)*prob_ang       
-                    occ_k_c=occ_k*(1-emp)
-                    occ_k_n = 0
-                    if sum_occ>0:
-                        occ_k_n=occ_k_c/sum_occ
-                    if occ_k_n<0:
-                        #self._map_occupied.set(c_x, c_y, 0.0)
-                        occ_k_n=0
-                    elif occ_k_n>1:
-                        occ_k_n=1
-                    
-                    occ=occ+occ_k_n-occ*occ_k_n
+                '''
+                Calculate probability for occupied, normalize and enhance
+                '''
+                if (c_delta >= registerd_range - uncertainty) and (c_delta <= registerd_range + uncertainty):
+                    occ_k = self._er_occ(registerd_range, c_delta, uncertainty) * prob_ang
+                    occ_k_c = occ_k * (1 - emp)
+                    occ_k_n = 0.
+                    if sum_occ > 0:
+                        occ_k_n = occ_k_c / sum_occ
+                    if occ_k_n < 0:
+                        occ_k_n = 0
+                    elif occ_k_n > 1:
+                        occ_k_n = 1
+
+                    occ = occ + occ_k_n - occ * occ_k_n
                     self._map_occupied.set(c_x, c_y, occ)
-               
-                if(occ>=emp):
+
+                if occ >= emp:
                     self._map_combined.set(c_x, c_y, occ)
                 else:
-                    self._map_combined.set(c_x,c_y,-emp)
+                    self._map_combined.set(c_x, c_y, -emp)
             else:
                 continue
-        
+
         pass
-    
-    
+
     def _er_free(self, sensed_distance, delta, uncertainty):
         """
         Calculate free-space probability.
@@ -223,13 +231,12 @@ class SonarMap:
             float : The probability to be free for a point delta meters away from
         the sonar's origin. The value is in the range 0.0 to 1.0.
         """
-        
-        #============================== YOUR CODE HERE ==============================
-        #Instructions: compute the distance probability function for the "probably
-        #              empty" region.
-        return 1-((delta)/sensed_distance-uncertainty)**2
 
-    
+        # ============================== YOUR CODE HERE ==============================
+        # Instructions: compute the distance probability function for the "probably
+        #              empty" region.
+        return 1 - (delta / sensed_distance - uncertainty) ** 2
+
     def _er_occ(self, sensed_distance, delta, uncertainty):
         """
         Calculate occupied-space probability.
@@ -255,12 +262,11 @@ class SonarMap:
         from the sonar's origin. The value is in the range 0.0 to 1.0.
         """
 
-        #============================== YOUR CODE HERE ==============================
-        #Instructions: compute the distance probability function for the "probably
+        # ============================== YOUR CODE HERE ==============================
+        # Instructions: compute the distance probability function for the "probably
         #              occupied" region.
-        return 1-((delta-sensed_distance)/uncertainty)**2
-    
-    
+        return 1 - ((delta - sensed_distance) / uncertainty) ** 2
+
     def _ea(self, sonar_fov, theta):
         """
         Probability for a point in the sonar cone to be actually measured.
@@ -281,15 +287,14 @@ class SonarMap:
         central line of the sonar cone.
         """
 
-        #============================== YOUR CODE HERE ==============================
-        #Instructions: compute the angular probability function (it is same for both
+        # ============================== YOUR CODE HERE ==============================
+        # Instructions: compute the angular probability function (it is same for both
         #              the "probably empty" and the "probably occupied" region.
-        if abs(theta)<=(sonar_fov/2):
-            return 1-(2*theta/sonar_fov)**2
+        if abs(theta) <= (sonar_fov / 2):
+            return 1 - (2 * theta / sonar_fov) ** 2
         else:
             return 0.0
-    
-    
+
     def _convert_to_map(self, c_pos):
         """
         Converts cell coordinates to metric coordinates. Examples:
@@ -298,13 +303,12 @@ class SonarMap:
         returns tuple (m_x, m_y) or None if cell coordinates out of bounds
         """
         c_x, c_y = c_pos
-        if ( self._map_combined.is_in_x_range(c_x) and
-             self._map_combined.is_in_y_range(c_y)      ):
-            return (c_x*self._resolution, c_y*self._resolution)
+        if (self._map_combined.is_in_x_range(c_x) and
+                self._map_combined.is_in_y_range(c_y)):
+            return (c_x * self._resolution, c_y * self._resolution)
         else:
             return None
-    
-    
+
     def _convert_to_cell(self, m_pos):
         """
         Converts metric coordinates cell coordinates. Examples:
@@ -314,47 +318,42 @@ class SonarMap:
         """
         m_x, m_y = m_pos
         c_x, c_y = int(round(m_x / self._resolution)), int(round(m_y / self._resolution))
-        if ( self._map_combined.is_in_x_range(c_x) and
-             self._map_combined.is_in_y_range(c_y)):
+        if (self._map_combined.is_in_x_range(c_x) and
+                self._map_combined.is_in_y_range(c_y)):
             return (c_x, c_y)
         else:
             return None
-     
-    def _get_angle_between(self, cell_pos,sensor_pos):
-         dx = cell_pos[0] - sensor_pos[0]
-         dy = cell_pos[1] - sensor_pos[1]
-         
-         return math.atan2(dy,dx)
 
+    def _get_angle_between(self, cell_pos, sensor_pos):
+        dx = cell_pos[0] - sensor_pos[0]
+        dy = cell_pos[1] - sensor_pos[1]
+
+        return math.atan2(dy, dx)
 
     def get_grid_size_x(self):
         return self._c_size_x
-    
+
     def get_grid_size_y(self):
         return self._c_size_y
-    
-    
+
     def get_min_x(self):
         return self._m_min_x
-        
+
     def get_min_y(self):
         return self._m_min_y
-    
-    
+
     def get_resolution(self):
         return self._resolution
-    
+
     def get_map_data(self):
         return self._map_combined.get_publish_data(-1.0, 1.0)
-    
+
     def get_map_free_data(self):
         return self._map_free.get_publish_data(0.0, 1.0)
-        
+
     def get_map_occupied_data(self):
         return self._map_occupied.get_publish_data(0.0, 1.0)
-   
-    
-    
+
     @staticmethod
     def euclidian_distance(*args):
         """ Returns euclidian distance between two points:
@@ -363,23 +362,21 @@ class SonarMap:
         """
         try:
             if len(args) == 2:
-                #tuples
-                return math.sqrt((args[0][0]-args[1][0])**2+(args[0][1]-args[1][1])**2)
+                # tuples
+                return math.sqrt((args[0][0] - args[1][0]) ** 2 + (args[0][1] - args[1][1]) ** 2)
             elif len(args) == 4:
-                #x's and y's:
-                return math.sqrt((args[0]-args[2])**2+(args[1]-args[3])**2)
+                # x's and y's:
+                return math.sqrt((args[0] - args[2]) ** 2 + (args[1] - args[3]) ** 2)
             else:
                 raise Exception('Invalid arguments for euclidian_distance()')
         except Exception as e:
             print "Exception caught:", e.message
-    
-    
+
     @staticmethod
     def angular_distance(a1, a2):
         """Returns angular distance between two angles"""
-        return math.atan2(math.sin(a1-a2), math.cos(a1-a2))
-    
-    
+        return math.atan2(math.sin(a1 - a2), math.cos(a1 - a2))
+
     @staticmethod
     def clamp(value, min_val, max_val):
         """Helper function to clamp a variable to a given range."""
