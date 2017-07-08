@@ -43,12 +43,16 @@ class PoseLikelihoodServerNode:
             http://wiki.ros.org/ROS/Tutorials/WritingServiceClient(python)
         """
 
-        self._likelihood_server = rospy.Service('/GetMultiplePoseLikelihood',
-                                                GetMultiplePoseLikelihood, self._handle_get_multiple_pose_likelihood)
+        # Expose the service
+        self._likelihood_server = rospy.Service('/pose_likelihood_server/get_pose_likelihood',
+                                                GetMultiplePoseLikelihood,
+                                                self._handle_multiple_pose_likelihood_request)
 
+        # Subscribe for laser scan
         self._scan_front_subscriber = rospy.Subscriber('/scan_front',
                                                        LaserScan, self._scan_front_callback, queue_size=1)
 
+        # Create client for occupied point on beam
         self._occupied_beam_client = rospy.ServiceProxy('/occupancy_query_server/get_nearest_occupied_point_on_beam',
                                                         GetNearestOccupiedPointOnBeam)
 
@@ -59,10 +63,15 @@ class PoseLikelihoodServerNode:
         pass
 
     def _scan_front_callback(self, data):
-        rospy.loginfo("scan front!!")
+        self.ranges = data.ranges
+        self.angle_min = data.angle_min
+        self.range_max = data.range_max
+        self.angle_increment = data.angle_increment
 
-    def _handle_get_multiple_pose_likelihood(self, request):
-        rospy.loginfo('handler!!')
+    def _handle_multiple_pose_likelihood_request(self, request):
+        likelihood = []
+
+        return likelihood
 
     """
     ============================== YOUR CODE HERE ==============================
@@ -100,7 +109,7 @@ class PoseLikelihoodServerNode:
 
     You might need other functions for transforming routine, you can find
     a brief api description
-    http://mirror.umd.edu/roswiki/doc/diamondback/api/tf/html/python/tf_python.html
+        http://mirror.umd.edu/roswiki/doc/diamondback/api/tf/html/python/tf_python.html
     """
 
 
