@@ -56,7 +56,21 @@ class PoseLikelihoodServerNode:
         self._occupied_beam_client = rospy.ServiceProxy('/occupancy_query_server/get_nearest_occupied_point_on_beam',
                                                         GetNearestOccupiedPointOnBeam)
 
+        # Transform base link to laser front link
+        base_frame_id = '/base_link'
+        laser_front_frame_id = '/base_laser_front_link'
         self._tf = tf.TransformListener()
+        self._tf.waitForTransform(base_frame_id, laser_front_frame_id,
+                                  rospy.Time(), rospy.Duration(10),
+                                  polling_sleep_duration=rospy.Duration(0.01))
+
+        time = self._tf.getLatestCommonTime(laser_front_frame_id, base_frame_id)
+        position, quaternion = self._tf.lookupTransform(base_frame_id, laser_front_frame_id, time)
+
+        self.pos_x = position[0]
+        self.pos_y = position[1]
+
+        self.pos_yaw = tf.transformations.euler_from_quaternion(quaternion)[2]
 
         rospy.loginfo('Started [pose_likelihood_server] node.')
 
