@@ -67,10 +67,8 @@ class PoseLikelihoodServerNode:
         time = self._tf.getLatestCommonTime(laser_front_frame_id, base_frame_id)
         position, quaternion = self._tf.lookupTransform(base_frame_id, laser_front_frame_id, time)
 
-        self.pos_x = position[0]
-        self.pos_y = position[1]
-
-        self.pos_yaw = tf.transformations.euler_from_quaternion(quaternion)[2]
+        self.init_x = position[0]
+        self.init_y = position[1]
 
         rospy.loginfo('Started [pose_likelihood_server] node.')
 
@@ -85,7 +83,68 @@ class PoseLikelihoodServerNode:
     def _handle_multiple_pose_likelihood_request(self, request):
         likelihood = []
 
-        return likelihood
+        for p in request.poses:
+            pos_x = p.pose.position.x
+            pos_y = p.pose.position.y
+
+            quaternion = (p.pose.orientation.x, p.pose.orientation.y, p.pose.orientation.z, p.pose.orientation.w)
+            theta = tf.transformations.euler_from_quaternion(quaternion)[2]
+
+            # Transformation of laser beam to robot frame
+            laser_initial = np.array([self.init_x, self.init_y, 1]).reshape(3, 1)
+            laser_beams = self._get_beam_to_robot_frame(pos_x, pos_y, theta, laser_initial)
+
+            # Call occupancy server
+            request = GetNearestOccupiedPointOnBeamRequest()
+            request.beams = laser_beams
+            request.threshold = 2
+            response = self._occupied_beam_client(request)
+
+            distances = self._check_max_distance(response)
+
+            # Get the difference between the simulated and actual readings
+            diff = abs(np.array(distances) - np.array(self.ranges))
+
+            # Calculate likelihood
+            weight = 1
+            sigma = 0.8
+            for difference in diff:
+                value = (1 / np.sqrt(2 * np.pi * sigma ** 2)) * (np.exp((-difference ** 2) / (2 * sigma ** 2)))
+                weight *= value
+
+            likelihood.append(weight)
+
+        response = GetMultiplePoseLikelihoodResponse()
+        response.likelihoods = likelihood
+
+        return response
+
+    def _get_beam_to_robot_frame(self, pos_x, pos_y, theta, initial):
+        beams = []
+        for idx in range(12):
+            M = np.array([[np.cos(theta), -np.sin(theta), pos_x],
+                          [np.sin(theta), np.cos(theta), pos_y],
+                          [0, 0, 1]])
+            laser_pose = np.dot(M, initial)
+
+            beam = Pose2D()
+            beam.x = laser_pose[0]
+            beam.y = laser_pose[1]
+            beam.theta = self.angle_min + idx * self.angle_increment
+
+            beams.append(beam)
+        return beams
+
+    def _check_max_distance(self, response):
+        distances = []
+        for i in range(len(response.distances)):
+            if (response.distances[i] > self.range_max or
+                    np.isinf(response.distances[i]) or
+                    np.isnan(response.distances[i])):
+                distances.append(self.range_max)
+            else:
+                distances.append(response.distances[i])
+        return distances
 
     """
     ============================== YOUR CODE HERE ==============================
