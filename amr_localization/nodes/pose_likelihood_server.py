@@ -4,6 +4,7 @@ PACKAGE = 'amr_localization'
 NODE = 'pose_likelihood_server'
 
 import roslib
+
 roslib.load_manifest(PACKAGE)
 import rospy
 import tf
@@ -12,15 +13,17 @@ import math
 
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import PoseStamped, Pose2D
-from amr_srvs.srv import GetMultiplePoseLikelihood, GetMultiplePoseLikelihoodResponse, GetNearestOccupiedPointOnBeam, GetNearestOccupiedPointOnBeamRequest, SwitchRanger
+from amr_srvs.srv import GetMultiplePoseLikelihood, GetMultiplePoseLikelihoodResponse, GetNearestOccupiedPointOnBeam, \
+    GetNearestOccupiedPointOnBeamRequest, SwitchRanger
 
 
 class PoseLikelihoodServerNode:
     """
     This is a port of the AMR Python PoseLikelihoodServerNode
     """
+
     def __init__(self):
-        
+
         rospy.init_node(NODE)
         # Wait until SwitchRanger service (and hence stage node) becomes available.
         rospy.loginfo('Waiting for the /switch_ranger service to be advertised...');
@@ -30,7 +33,7 @@ class PoseLikelihoodServerNode:
             # Make sure that the hokuyo laser is available and enable them (aka switch on range scanner)
             switch_ranger('scan_front', True)
         except rospy.ServiceException, e:
-            rospy.logerror("Service call failed: %s"%e)
+            rospy.logerror("Service call failed: %s" % e)
 
         """
             Expose GetMultiplePoseLikelihood Service here,
@@ -40,11 +43,26 @@ class PoseLikelihoodServerNode:
             http://wiki.ros.org/ROS/Tutorials/WritingServiceClient(python)
         """
 
+        self._likelihood_server = rospy.Service('/GetMultiplePoseLikelihood',
+                                                GetMultiplePoseLikelihood, self._handle_get_multiple_pose_likelihood)
+
+        self._scan_front_subscriber = rospy.Subscriber('/scan_front',
+                                                       LaserScan, self._scan_front_callback, queue_size=1)
+
+        self._occupied_beam_client = rospy.ServiceProxy('/occupancy_query_server/get_nearest_occupied_point_on_beam',
+                                                        GetNearestOccupiedPointOnBeam)
+
         self._tf = tf.TransformListener()
 
         rospy.loginfo('Started [pose_likelihood_server] node.')
 
         pass
+
+    def _scan_front_callback(self, data):
+        rospy.loginfo("scan front!!")
+
+    def _handle_get_multiple_pose_likelihood(self, request):
+        rospy.loginfo('handler!!')
 
     """
     ============================== YOUR CODE HERE ==============================
@@ -85,8 +103,7 @@ class PoseLikelihoodServerNode:
     http://mirror.umd.edu/roswiki/doc/diamondback/api/tf/html/python/tf_python.html
     """
 
-      
+
 if __name__ == '__main__':
     w = PoseLikelihoodServerNode()
     rospy.spin()
-
